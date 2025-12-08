@@ -1,0 +1,1400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Job Hunt Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .stage-pill { transition: all 0.3s ease; }
+        .stage-pill:hover { transform: scale(1.05); }
+        .card-hover:hover { transform: translateY(-2px); box-shadow: 0 10px 40px rgba(0,0,0,0.15); }
+        .modal { transition: opacity 0.3s ease; }
+        .slide-in { animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        .pulse-dot { animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .view-btn.active { background: linear-gradient(135deg, #6366f1, #8b5cf6); }
+        .kanban-column { min-height: 400px; }
+        .kanban-card { cursor: grab; }
+        .kanban-card:active { cursor: grabbing; }
+        .kanban-card.dragging { opacity: 0.5; transform: rotate(3deg); }
+        .kanban-column.drag-over { background: rgba(99, 102, 241, 0.1); border-color: #6366f1; }
+        .table-container { overflow-x: auto; }
+        .table-container::-webkit-scrollbar { height: 8px; }
+        .table-container::-webkit-scrollbar-track { background: #1f2937; }
+        .table-container::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+        .sortable:hover { background: rgba(99, 102, 241, 0.2); }
+        .sortable .sort-icon { opacity: 0; transition: opacity 0.2s; }
+        .sortable:hover .sort-icon { opacity: 1; }
+        .filter-dropdown { max-height: 200px; overflow-y: auto; }
+        @media (max-width: 768px) {
+            .kanban-wrapper { flex-direction: column; }
+            .kanban-column { min-width: 100%; }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-indigo-900 via-purple-900 to-indigo-900 shadow-xl border-b border-indigo-700">
+        <div class="max-w-7xl mx-auto px-4 py-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h1 class="text-2xl sm:text-3xl font-bold text-white flex items-center gap-3">
+                        <i class="fas fa-briefcase text-indigo-400"></i>
+                        My Job Hunt Tracker
+                    </h1>
+                    <p class="text-indigo-300 mt-1 text-sm sm:text-base">Track every opportunity, interaction & milestone</p>
+                </div>
+                <button onclick="openAddModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-semibold flex items-center gap-2 transition shadow-lg text-sm sm:text-base">
+                    <i class="fas fa-plus"></i> New Opportunity
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Stats Dashboard -->
+    <div class="max-w-7xl mx-auto px-4 py-6">
+        <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-9 gap-2 sm:gap-3" id="stageCounts">
+            <!-- Dynamically populated -->
+        </div>
+    </div>
+
+    <!-- Data Insights Section -->
+    <main class="max-w-7xl mx-auto px-4 pb-8">
+        <!-- View Switcher & Filters Bar -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-4 mb-6">
+            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                <!-- View Toggle -->
+                <div class="flex items-center gap-2">
+                    <span class="text-gray-400 text-sm font-medium mr-2">View:</span>
+                    <div class="flex bg-gray-900 rounded-lg p-1">
+                        <button onclick="switchView('card')" class="view-btn active px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2" data-view="card">
+                            <i class="fas fa-th-large"></i> <span class="hidden sm:inline">Cards</span>
+                        </button>
+                        <button onclick="switchView('table')" class="view-btn px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 text-gray-400 hover:text-white" data-view="table">
+                            <i class="fas fa-table"></i> <span class="hidden sm:inline">Table</span>
+                        </button>
+                        <button onclick="switchView('kanban')" class="view-btn px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 text-gray-400 hover:text-white" data-view="kanban">
+                            <i class="fas fa-columns"></i> <span class="hidden sm:inline">Kanban</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Adaptive Filters -->
+                <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+                    <!-- Search -->
+                    <div class="relative flex-1 lg:flex-none">
+                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"></i>
+                        <input type="text" id="searchInput" placeholder="Search company, role..." 
+                            class="bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-4 py-2 text-sm text-white w-full lg:w-48 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                            oninput="applyFilters()">
+                    </div>
+
+                    <!-- Stage Filter -->
+                    <div class="relative">
+                        <button onclick="toggleFilterDropdown('stageFilter')" class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white flex items-center gap-2 hover:bg-gray-600">
+                            <i class="fas fa-filter text-indigo-400"></i> Stage
+                            <i class="fas fa-chevron-down text-xs"></i>
+                        </button>
+                        <div id="stageFilter" class="filter-dropdown hidden absolute top-full mt-1 left-0 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-20 min-w-[180px]">
+                            <div class="p-2">
+                                <label class="flex items-center gap-2 p-2 hover:bg-gray-700 rounded cursor-pointer">
+                                    <input type="checkbox" class="stage-filter-cb rounded" value="all" checked onchange="applyFilters()">
+                                    <span class="text-sm">All Stages</span>
+                                </label>
+                                <div id="stageFilterOptions"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Type Filter -->
+                    <div class="relative">
+                        <button onclick="toggleFilterDropdown('typeFilter')" class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white flex items-center gap-2 hover:bg-gray-600">
+                            <i class="fas fa-briefcase text-green-400"></i> Type
+                            <i class="fas fa-chevron-down text-xs"></i>
+                        </button>
+                        <div id="typeFilter" class="filter-dropdown hidden absolute top-full mt-1 left-0 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-20 min-w-[180px]">
+                            <div class="p-2" id="typeFilterOptions"></div>
+                        </div>
+                    </div>
+
+                    <!-- Location Filter -->
+                    <div class="relative">
+                        <button onclick="toggleFilterDropdown('locationFilter')" class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white flex items-center gap-2 hover:bg-gray-600">
+                            <i class="fas fa-map-marker-alt text-red-400"></i> Location
+                            <i class="fas fa-chevron-down text-xs"></i>
+                        </button>
+                        <div id="locationFilter" class="filter-dropdown hidden absolute top-full mt-1 left-0 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-20 min-w-[180px]">
+                            <div class="p-2" id="locationFilterOptions"></div>
+                        </div>
+                    </div>
+
+                    <!-- Result Filter -->
+                    <div class="relative">
+                        <button onclick="toggleFilterDropdown('resultFilter')" class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white flex items-center gap-2 hover:bg-gray-600">
+                            <i class="fas fa-flag text-yellow-400"></i> Result
+                            <i class="fas fa-chevron-down text-xs"></i>
+                        </button>
+                        <div id="resultFilter" class="filter-dropdown hidden absolute top-full mt-1 right-0 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-20 min-w-[180px]">
+                            <div class="p-2" id="resultFilterOptions"></div>
+                        </div>
+                    </div>
+
+                    <!-- Clear Filters -->
+                    <button onclick="clearAllFilters()" class="bg-red-600/20 border border-red-600/30 text-red-400 rounded-lg px-3 py-2 text-sm hover:bg-red-600/30 transition">
+                        <i class="fas fa-times"></i> Clear
+                    </button>
+                </div>
+            </div>
+
+            <!-- Active Filters Display -->
+            <div id="activeFiltersBar" class="hidden mt-3 pt-3 border-t border-gray-700">
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="text-gray-500 text-sm">Active Filters:</span>
+                    <div id="activeFilterTags" class="flex flex-wrap gap-2"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Table Column Selector (shown only in table view) -->
+        <div id="columnSelector" class="hidden bg-gray-800 rounded-xl border border-gray-700 p-4 mb-4">
+            <div class="flex flex-wrap items-center gap-3">
+                <span class="text-gray-400 text-sm font-medium">Show Columns:</span>
+                <label class="flex items-center gap-1 text-sm text-gray-300 cursor-pointer">
+                    <input type="checkbox" class="col-toggle rounded" data-col="company" checked onchange="updateTableColumns()"> Company
+                </label>
+                <label class="flex items-center gap-1 text-sm text-gray-300 cursor-pointer">
+                    <input type="checkbox" class="col-toggle rounded" data-col="role" checked onchange="updateTableColumns()"> Role
+                </label>
+                <label class="flex items-center gap-1 text-sm text-gray-300 cursor-pointer">
+                    <input type="checkbox" class="col-toggle rounded" data-col="hr" checked onchange="updateTableColumns()"> HR/Vendor
+                </label>
+                <label class="flex items-center gap-1 text-sm text-gray-300 cursor-pointer">
+                    <input type="checkbox" class="col-toggle rounded" data-col="type" checked onchange="updateTableColumns()"> Type
+                </label>
+                <label class="flex items-center gap-1 text-sm text-gray-300 cursor-pointer">
+                    <input type="checkbox" class="col-toggle rounded" data-col="location" checked onchange="updateTableColumns()"> Location
+                </label>
+                <label class="flex items-center gap-1 text-sm text-gray-300 cursor-pointer">
+                    <input type="checkbox" class="col-toggle rounded" data-col="salary" checked onchange="updateTableColumns()"> Salary
+                </label>
+                <label class="flex items-center gap-1 text-sm text-gray-300 cursor-pointer">
+                    <input type="checkbox" class="col-toggle rounded" data-col="stage" checked onchange="updateTableColumns()"> Stage
+                </label>
+                <label class="flex items-center gap-1 text-sm text-gray-300 cursor-pointer">
+                    <input type="checkbox" class="col-toggle rounded" data-col="result" onchange="updateTableColumns()"> Result
+                </label>
+                <label class="flex items-center gap-1 text-sm text-gray-300 cursor-pointer">
+                    <input type="checkbox" class="col-toggle rounded" data-col="lastAction" checked onchange="updateTableColumns()"> Last Action
+                </label>
+                <label class="flex items-center gap-1 text-sm text-gray-300 cursor-pointer">
+                    <input type="checkbox" class="col-toggle rounded" data-col="updated" checked onchange="updateTableColumns()"> Updated
+                </label>
+            </div>
+        </div>
+
+        <!-- Card View -->
+        <div id="cardView" class="view-container">
+            <div id="applicationsGrid" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <!-- Dynamically populated -->
+            </div>
+        </div>
+
+        <!-- Table View -->
+        <div id="tableView" class="view-container hidden">
+            <div class="table-container bg-gray-800 rounded-xl border border-gray-700">
+                <table class="w-full text-sm">
+                    <thead id="tableHead" class="bg-gray-900 text-gray-400 text-left">
+                        <!-- Dynamically populated -->
+                    </thead>
+                    <tbody id="tableBody" class="divide-y divide-gray-700">
+                        <!-- Dynamically populated -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Kanban View -->
+        <div id="kanbanView" class="view-container hidden">
+            <div class="kanban-wrapper flex gap-4 overflow-x-auto pb-4" id="kanbanBoard">
+                <!-- Dynamically populated -->
+            </div>
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="hidden text-center py-16">
+            <i class="fas fa-folder-open text-6xl text-gray-600 mb-4"></i>
+            <h3 class="text-xl font-semibold text-gray-400">No applications found</h3>
+            <p class="text-gray-500 mt-2">Try adjusting your filters or add a new opportunity</p>
+        </div>
+
+        <!-- Results Summary -->
+        <div id="resultsSummary" class="mt-4 text-center text-gray-500 text-sm">
+            <!-- Dynamically populated -->
+        </div>
+    </main>
+
+    <!-- Add/Edit Modal -->
+    <div id="addModal" class="modal fixed inset-0 bg-black/70 z-50 hidden items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-gray-800 rounded-2xl max-w-2xl w-full my-8 shadow-2xl border border-gray-700">
+            <div class="p-6 border-b border-gray-700">
+                <div class="flex justify-between items-center">
+                    <h2 id="modalTitle" class="text-xl font-bold text-white">Add New Opportunity</h2>
+                    <button onclick="closeAddModal()" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+                </div>
+            </div>
+            <form id="applicationForm" class="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                <input type="hidden" id="appId">
+                
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Company Name *</label>
+                        <input type="text" id="companyName" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Role/Position *</label>
+                        <input type="text" id="role" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                    </div>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">HR/Vendor Name</label>
+                        <input type="text" id="hrName" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">HR Contact (Phone/Email)</label>
+                        <input type="text" id="hrContact" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                    </div>
+                </div>
+
+                <div class="grid md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Opportunity Type</label>
+                        <select id="opportunityType" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500">
+                            <option value="">Select...</option>
+                            <option value="C2H">C2H (Contract to Hire)</option>
+                            <option value="Payroll">Company Payroll</option>
+                            <option value="Contract">Contract</option>
+                            <option value="Vendor Payroll">Vendor Payroll</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Location</label>
+                        <select id="location" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500">
+                            <option value="">Select...</option>
+                            <option value="Remote">Remote</option>
+                            <option value="WFO">Work From Office</option>
+                            <option value="Hybrid">Hybrid</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Location City</label>
+                        <input type="text" id="city" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                    </div>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Expected Salary/Rate</label>
+                        <input type="text" id="salary" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="e.g., 25 LPA or $80/hr">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Notice Period Discussed</label>
+                        <input type="text" id="noticePeriod" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="e.g., Immediate, 30 days">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Key Skills Required</label>
+                    <input type="text" id="keySkills" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="e.g., React, Node.js, AWS">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Job Description / Notes</label>
+                    <textarea id="jdNotes" rows="3" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="Paste JD or add notes..."></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Current Stage</label>
+                    <select id="currentStage" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500">
+                        <option value="1">Stage 1: Initial Contact from HR/Vendor</option>
+                        <option value="2">Stage 2: Opportunity Discussion & JD Shared</option>
+                        <option value="3">Stage 3: CV Submitted - Following Up</option>
+                        <option value="4">Stage 4: CV Shortlisted for Interview</option>
+                        <option value="5">Stage 5: Interview Scheduled</option>
+                        <option value="6">Stage 6: Interview Given - Awaiting Feedback</option>
+                        <option value="7">Stage 7: Further Rounds in Progress</option>
+                        <option value="8">Stage 8: Final Result</option>
+                        <option value="0">Closed/Discarded</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Final Result (if applicable)</label>
+                    <select id="finalResult" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500">
+                        <option value="">In Progress...</option>
+                        <option value="offered">🎉 Offer Received</option>
+                        <option value="accepted">✅ Offer Accepted</option>
+                        <option value="rejected">❌ Rejected by Company</option>
+                        <option value="declined">🚫 Declined by Me</option>
+                        <option value="ghosted">👻 No Response/Ghosted</option>
+                    </select>
+                </div>
+
+                <div class="flex gap-3 pt-4">
+                    <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-xl font-semibold transition">
+                        <i class="fas fa-save mr-2"></i> Save Application
+                    </button>
+                    <button type="button" onclick="closeAddModal()" class="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-xl font-semibold transition">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Detail View Modal -->
+    <div id="detailModal" class="modal fixed inset-0 bg-black/70 z-50 hidden overflow-y-auto">
+        <div class="min-h-screen flex items-start justify-end">
+            <div id="detailPanel" class="slide-in bg-gray-800 w-full max-w-2xl min-h-screen shadow-2xl border-l border-gray-700">
+                <!-- Dynamically populated -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Interaction Modal -->
+    <div id="interactionModal" class="modal fixed inset-0 bg-black/70 z-[60] hidden items-center justify-center p-4">
+        <div class="bg-gray-800 rounded-2xl max-w-lg w-full shadow-2xl border border-gray-700">
+            <div class="p-6 border-b border-gray-700">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-xl font-bold text-white">Log Interaction</h2>
+                    <button onclick="closeInteractionModal()" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+                </div>
+            </div>
+            <form id="interactionForm" class="p-6 space-y-4">
+                <input type="hidden" id="interactionAppId">
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Interaction Type</label>
+                    <select id="interactionType" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white">
+                        <option value="call_received">📞 Call Received</option>
+                        <option value="call_made">📱 Call Made</option>
+                        <option value="email_received">📧 Email Received</option>
+                        <option value="email_sent">📤 Email Sent</option>
+                        <option value="interview">🎤 Interview</option>
+                        <option value="followup">🔄 Follow Up</option>
+                        <option value="update">📝 Status Update</option>
+                        <option value="other">📌 Other</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Date & Time</label>
+                    <input type="datetime-local" id="interactionDate" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Summary / Notes *</label>
+                    <textarea id="interactionNotes" rows="4" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white" placeholder="What was discussed? Any action items?"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Update Stage?</label>
+                    <select id="interactionStage" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white">
+                        <option value="">No change</option>
+                        <option value="1">Stage 1: Initial Contact from HR/Vendor</option>
+                        <option value="2">Stage 2: Opportunity Discussion & JD Shared</option>
+                        <option value="3">Stage 3: CV Submitted - Following Up</option>
+                        <option value="4">Stage 4: CV Shortlisted for Interview</option>
+                        <option value="5">Stage 5: Interview Scheduled</option>
+                        <option value="6">Stage 6: Interview Given - Awaiting Feedback</option>
+                        <option value="7">Stage 7: Further Rounds in Progress</option>
+                        <option value="8">Stage 8: Final Result</option>
+                        <option value="0">Closed/Discarded</option>
+                    </select>
+                </div>
+
+                <div class="flex gap-3 pt-4">
+                    <button type="submit" class="flex-1 bg-green-600 hover:bg-green-500 text-white py-3 rounded-xl font-semibold transition">
+                        <i class="fas fa-plus mr-2"></i> Log Interaction
+                    </button>
+                    <button type="button" onclick="closeInteractionModal()" class="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-xl font-semibold transition">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Stage definitions matching user's process
+        const STAGES = {
+            1: { name: 'Initial Contact', icon: 'fa-phone-volume', color: 'bg-blue-500', desc: 'HR/Vendor call based on CV' },
+            2: { name: 'Discussion', icon: 'fa-comments', color: 'bg-purple-500', desc: 'Role, Skills, Salary, Location discussed' },
+            3: { name: 'CV Screening', icon: 'fa-file-alt', color: 'bg-yellow-500', desc: 'Following up on screening status' },
+            4: { name: 'Shortlisted', icon: 'fa-check-circle', color: 'bg-teal-500', desc: 'CV shortlisted for interview' },
+            5: { name: 'Interview Set', icon: 'fa-calendar-check', color: 'bg-indigo-500', desc: 'Interview scheduled on calendar' },
+            6: { name: 'Awaiting Feedback', icon: 'fa-hourglass-half', color: 'bg-orange-500', desc: 'Interview given, tracking feedback' },
+            7: { name: 'Further Rounds', icon: 'fa-layer-group', color: 'bg-pink-500', desc: 'Additional interview rounds' },
+            8: { name: 'Final Result', icon: 'fa-flag-checkered', color: 'bg-green-500', desc: 'Application reached final stage' },
+            0: { name: 'Closed', icon: 'fa-times-circle', color: 'bg-gray-500', desc: 'Application closed/discarded' }
+        };
+
+        const INTERACTION_ICONS = {
+            'call_received': '📞',
+            'call_made': '📱',
+            'email_received': '📧',
+            'email_sent': '📤',
+            'interview': '🎤',
+            'followup': '🔄',
+            'update': '📝',
+            'other': '📌'
+        };
+
+        const RESULT_LABELS = {
+            'offered': { text: '🎉 Offer Received', class: 'text-green-400' },
+            'accepted': { text: '✅ Offer Accepted', class: 'text-green-400' },
+            'rejected': { text: '❌ Rejected', class: 'text-red-400' },
+            'declined': { text: '🚫 Declined', class: 'text-yellow-400' },
+            'ghosted': { text: '👻 Ghosted', class: 'text-gray-400' }
+        };
+
+        let applications = JSON.parse(localStorage.getItem('jobApplications')) || [];
+        let currentView = 'card';
+        let currentSort = { column: 'lastUpdated', direction: 'desc' };
+        let activeFilters = {
+            search: '',
+            stages: [],
+            types: [],
+            locations: [],
+            results: []
+        };
+        let visibleColumns = ['company', 'role', 'hr', 'type', 'location', 'salary', 'stage', 'lastAction', 'updated'];
+
+        // Save to localStorage
+        function saveData() {
+            localStorage.setItem('jobApplications', JSON.stringify(applications));
+        }
+
+        // Generate unique ID
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2);
+        }
+
+        // Format date
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+
+        function formatDateTime(dateStr) {
+            if (!dateStr) return '-';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+        }
+
+        function timeAgo(dateStr) {
+            if (!dateStr) return '-';
+            const now = new Date();
+            const date = new Date(dateStr);
+            const diff = Math.floor((now - date) / 1000);
+            
+            if (diff < 60) return 'Just now';
+            if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+            if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+            if (diff < 604800) return Math.floor(diff / 86400) + 'd ago';
+            return formatDate(dateStr);
+        }
+
+        // Initialize filter options
+        function initializeFilters() {
+            // Stage filter options
+            const stageOptions = document.getElementById('stageFilterOptions');
+            stageOptions.innerHTML = Object.entries(STAGES).map(([stage, info]) => `
+                <label class="flex items-center gap-2 p-2 hover:bg-gray-700 rounded cursor-pointer">
+                    <input type="checkbox" class="stage-filter-cb rounded" value="${stage}" onchange="applyFilters()">
+                    <span class="w-3 h-3 rounded-full ${info.color}"></span>
+                    <span class="text-sm">${info.name}</span>
+                </label>
+            `).join('');
+
+            // Type filter options
+            const types = [...new Set(applications.map(a => a.opportunityType).filter(Boolean))];
+            const typeOptions = document.getElementById('typeFilterOptions');
+            typeOptions.innerHTML = `
+                <label class="flex items-center gap-2 p-2 hover:bg-gray-700 rounded cursor-pointer">
+                    <input type="checkbox" class="type-filter-cb rounded" value="all" checked onchange="applyFilters()">
+                    <span class="text-sm">All Types</span>
+                </label>
+                ${types.map(t => `
+                    <label class="flex items-center gap-2 p-2 hover:bg-gray-700 rounded cursor-pointer">
+                        <input type="checkbox" class="type-filter-cb rounded" value="${t}" onchange="applyFilters()">
+                        <span class="text-sm">${t}</span>
+                    </label>
+                `).join('')}
+            `;
+
+            // Location filter options
+            const locations = [...new Set(applications.map(a => a.location).filter(Boolean))];
+            const locationOptions = document.getElementById('locationFilterOptions');
+            locationOptions.innerHTML = `
+                <label class="flex items-center gap-2 p-2 hover:bg-gray-700 rounded cursor-pointer">
+                    <input type="checkbox" class="location-filter-cb rounded" value="all" checked onchange="applyFilters()">
+                    <span class="text-sm">All Locations</span>
+                </label>
+                ${locations.map(l => `
+                    <label class="flex items-center gap-2 p-2 hover:bg-gray-700 rounded cursor-pointer">
+                        <input type="checkbox" class="location-filter-cb rounded" value="${l}" onchange="applyFilters()">
+                        <span class="text-sm">${l}</span>
+                    </label>
+                `).join('')}
+            `;
+
+            // Result filter options
+            const resultOptions = document.getElementById('resultFilterOptions');
+            resultOptions.innerHTML = `
+                <label class="flex items-center gap-2 p-2 hover:bg-gray-700 rounded cursor-pointer">
+                    <input type="checkbox" class="result-filter-cb rounded" value="all" checked onchange="applyFilters()">
+                    <span class="text-sm">All Results</span>
+                </label>
+                <label class="flex items-center gap-2 p-2 hover:bg-gray-700 rounded cursor-pointer">
+                    <input type="checkbox" class="result-filter-cb rounded" value="inprogress" onchange="applyFilters()">
+                    <span class="text-sm">⏳ In Progress</span>
+                </label>
+                ${Object.entries(RESULT_LABELS).map(([key, val]) => `
+                    <label class="flex items-center gap-2 p-2 hover:bg-gray-700 rounded cursor-pointer">
+                        <input type="checkbox" class="result-filter-cb rounded" value="${key}" onchange="applyFilters()">
+                        <span class="text-sm">${val.text}</span>
+                    </label>
+                `).join('')}
+            `;
+        }
+
+        function toggleFilterDropdown(id) {
+            const dropdown = document.getElementById(id);
+            const allDropdowns = document.querySelectorAll('.filter-dropdown');
+            allDropdowns.forEach(d => {
+                if (d.id !== id) d.classList.add('hidden');
+            });
+            dropdown.classList.toggle('hidden');
+        }
+
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.relative')) {
+                document.querySelectorAll('.filter-dropdown').forEach(d => d.classList.add('hidden'));
+            }
+        });
+
+        function applyFilters() {
+            // Get search term
+            activeFilters.search = document.getElementById('searchInput').value.toLowerCase();
+
+            // Get stage filters
+            const stageAll = document.querySelector('.stage-filter-cb[value="all"]');
+            const stageChecked = [...document.querySelectorAll('.stage-filter-cb:not([value="all"]):checked')].map(cb => cb.value);
+            activeFilters.stages = stageAll?.checked || stageChecked.length === 0 ? [] : stageChecked;
+
+            // Get type filters
+            const typeAll = document.querySelector('.type-filter-cb[value="all"]');
+            const typeChecked = [...document.querySelectorAll('.type-filter-cb:not([value="all"]):checked')].map(cb => cb.value);
+            activeFilters.types = typeAll?.checked || typeChecked.length === 0 ? [] : typeChecked;
+
+            // Get location filters
+            const locAll = document.querySelector('.location-filter-cb[value="all"]');
+            const locChecked = [...document.querySelectorAll('.location-filter-cb:not([value="all"]):checked')].map(cb => cb.value);
+            activeFilters.locations = locAll?.checked || locChecked.length === 0 ? [] : locChecked;
+
+            // Get result filters
+            const resAll = document.querySelector('.result-filter-cb[value="all"]');
+            const resChecked = [...document.querySelectorAll('.result-filter-cb:not([value="all"]):checked')].map(cb => cb.value);
+            activeFilters.results = resAll?.checked || resChecked.length === 0 ? [] : resChecked;
+
+            updateActiveFiltersBar();
+            renderCurrentView();
+        }
+
+        function updateActiveFiltersBar() {
+            const bar = document.getElementById('activeFiltersBar');
+            const tags = document.getElementById('activeFilterTags');
+            const hasFilters = activeFilters.search || 
+                              activeFilters.stages.length > 0 || 
+                              activeFilters.types.length > 0 || 
+                              activeFilters.locations.length > 0 ||
+                              activeFilters.results.length > 0;
+
+            if (!hasFilters) {
+                bar.classList.add('hidden');
+                return;
+            }
+
+            bar.classList.remove('hidden');
+            let tagsHtml = '';
+
+            if (activeFilters.search) {
+                tagsHtml += `<span class="bg-indigo-600/30 text-indigo-300 px-2 py-1 rounded text-xs flex items-center gap-1">
+                    <i class="fas fa-search"></i> "${activeFilters.search}"
+                    <button onclick="clearFilter('search')" class="ml-1 hover:text-white">&times;</button>
+                </span>`;
+            }
+
+            activeFilters.stages.forEach(s => {
+                const stage = STAGES[s];
+                tagsHtml += `<span class="${stage.color} bg-opacity-30 text-white px-2 py-1 rounded text-xs flex items-center gap-1">
+                    ${stage.name}
+                    <button onclick="clearFilter('stage', '${s}')" class="ml-1 hover:text-white">&times;</button>
+                </span>`;
+            });
+
+            activeFilters.types.forEach(t => {
+                tagsHtml += `<span class="bg-green-600/30 text-green-300 px-2 py-1 rounded text-xs flex items-center gap-1">
+                    ${t}
+                    <button onclick="clearFilter('type', '${t}')" class="ml-1 hover:text-white">&times;</button>
+                </span>`;
+            });
+
+            activeFilters.locations.forEach(l => {
+                tagsHtml += `<span class="bg-red-600/30 text-red-300 px-2 py-1 rounded text-xs flex items-center gap-1">
+                    ${l}
+                    <button onclick="clearFilter('location', '${l}')" class="ml-1 hover:text-white">&times;</button>
+                </span>`;
+            });
+
+            activeFilters.results.forEach(r => {
+                const label = r === 'inprogress' ? '⏳ In Progress' : (RESULT_LABELS[r]?.text || r);
+                tagsHtml += `<span class="bg-yellow-600/30 text-yellow-300 px-2 py-1 rounded text-xs flex items-center gap-1">
+                    ${label}
+                    <button onclick="clearFilter('result', '${r}')" class="ml-1 hover:text-white">&times;</button>
+                </span>`;
+            });
+
+            tags.innerHTML = tagsHtml;
+        }
+
+        function clearFilter(type, value) {
+            if (type === 'search') {
+                document.getElementById('searchInput').value = '';
+            } else if (type === 'stage') {
+                document.querySelector(`.stage-filter-cb[value="${value}"]`).checked = false;
+            } else if (type === 'type') {
+                document.querySelector(`.type-filter-cb[value="${value}"]`).checked = false;
+            } else if (type === 'location') {
+                document.querySelector(`.location-filter-cb[value="${value}"]`).checked = false;
+            } else if (type === 'result') {
+                document.querySelector(`.result-filter-cb[value="${value}"]`).checked = false;
+            }
+            applyFilters();
+        }
+
+        function clearAllFilters() {
+            document.getElementById('searchInput').value = '';
+            document.querySelectorAll('.stage-filter-cb, .type-filter-cb, .location-filter-cb, .result-filter-cb').forEach(cb => {
+                cb.checked = cb.value === 'all';
+            });
+            applyFilters();
+        }
+
+        // Get filtered and sorted applications
+        function getFilteredApplications() {
+            let filtered = [...applications];
+
+            // Apply search filter
+            if (activeFilters.search) {
+                filtered = filtered.filter(a => 
+                    a.companyName?.toLowerCase().includes(activeFilters.search) ||
+                    a.role?.toLowerCase().includes(activeFilters.search) ||
+                    a.hrName?.toLowerCase().includes(activeFilters.search) ||
+                    a.keySkills?.toLowerCase().includes(activeFilters.search)
+                );
+            }
+
+            // Apply stage filter
+            if (activeFilters.stages.length > 0) {
+                filtered = filtered.filter(a => activeFilters.stages.includes(String(a.currentStage)));
+            }
+
+            // Apply type filter
+            if (activeFilters.types.length > 0) {
+                filtered = filtered.filter(a => activeFilters.types.includes(a.opportunityType));
+            }
+
+            // Apply location filter
+            if (activeFilters.locations.length > 0) {
+                filtered = filtered.filter(a => activeFilters.locations.includes(a.location));
+            }
+
+            // Apply result filter
+            if (activeFilters.results.length > 0) {
+                filtered = filtered.filter(a => {
+                    if (activeFilters.results.includes('inprogress') && !a.finalResult) return true;
+                    return activeFilters.results.includes(a.finalResult);
+                });
+            }
+
+            // Apply sorting
+            filtered.sort((a, b) => {
+                let aVal, bVal;
+                switch (currentSort.column) {
+                    case 'company': aVal = a.companyName || ''; bVal = b.companyName || ''; break;
+                    case 'role': aVal = a.role || ''; bVal = b.role || ''; break;
+                    case 'stage': aVal = a.currentStage; bVal = b.currentStage; break;
+                    case 'lastUpdated': aVal = new Date(a.lastUpdated || 0); bVal = new Date(b.lastUpdated || 0); break;
+                    default: aVal = a[currentSort.column] || ''; bVal = b[currentSort.column] || '';
+                }
+                if (aVal < bVal) return currentSort.direction === 'asc' ? -1 : 1;
+                if (aVal > bVal) return currentSort.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            return filtered;
+        }
+
+        // View switching
+        function switchView(view) {
+            currentView = view;
+            document.querySelectorAll('.view-btn').forEach(btn => {
+                btn.classList.remove('active');
+                btn.classList.add('text-gray-400');
+            });
+            document.querySelector(`[data-view="${view}"]`).classList.add('active');
+            document.querySelector(`[data-view="${view}"]`).classList.remove('text-gray-400');
+
+            document.querySelectorAll('.view-container').forEach(c => c.classList.add('hidden'));
+            document.getElementById(`${view}View`).classList.remove('hidden');
+
+            // Show/hide column selector for table view
+            document.getElementById('columnSelector').classList.toggle('hidden', view !== 'table');
+
+            renderCurrentView();
+        }
+
+        function renderCurrentView() {
+            const filtered = getFilteredApplications();
+            
+            // Update results summary
+            document.getElementById('resultsSummary').textContent = 
+                `Showing ${filtered.length} of ${applications.length} applications`;
+
+            // Show/hide empty state
+            const isEmpty = filtered.length === 0;
+            document.getElementById('emptyState').classList.toggle('hidden', !isEmpty);
+            document.getElementById(`${currentView}View`).classList.toggle('hidden', isEmpty);
+
+            if (isEmpty) return;
+
+            switch (currentView) {
+                case 'card': renderCardView(filtered); break;
+                case 'table': renderTableView(filtered); break;
+                case 'kanban': renderKanbanView(filtered); break;
+            }
+        }
+
+        // Render stage counts
+        function renderStageCounts() {
+            const counts = {};
+            Object.keys(STAGES).forEach(s => counts[s] = 0);
+            
+            applications.forEach(app => {
+                counts[app.currentStage] = (counts[app.currentStage] || 0) + 1;
+            });
+
+            const container = document.getElementById('stageCounts');
+            container.innerHTML = Object.entries(STAGES).map(([stage, info]) => `
+                <div class="stage-pill ${info.color} bg-opacity-20 border border-opacity-30 ${info.color.replace('bg-', 'border-')} rounded-xl p-2 sm:p-3 text-center cursor-pointer hover:bg-opacity-30" onclick="quickFilterStage('${stage}')">
+                    <div class="text-xl sm:text-2xl font-bold text-white">${counts[stage] || 0}</div>
+                    <div class="text-xs text-gray-300 truncate">${info.name}</div>
+                </div>
+            `).join('');
+        }
+
+        function quickFilterStage(stage) {
+            // Reset other stage filters and set this one
+            document.querySelectorAll('.stage-filter-cb').forEach(cb => {
+                cb.checked = cb.value === stage;
+            });
+            applyFilters();
+        }
+
+        // Card View
+        function renderCardView(filtered) {
+            const grid = document.getElementById('applicationsGrid');
+            
+            grid.innerHTML = filtered.map(app => {
+                const stage = STAGES[app.currentStage] || STAGES[0];
+                const lastInteraction = app.interactions && app.interactions.length > 0 
+                    ? app.interactions[app.interactions.length - 1] 
+                    : null;
+
+                return `
+                    <div class="card-hover bg-gray-800 rounded-xl border border-gray-700 overflow-hidden transition cursor-pointer" onclick="openDetailView('${app.id}')">
+                        <div class="p-4">
+                            <div class="flex justify-between items-start mb-3">
+                                <div class="flex-1 min-w-0">
+                                    <h3 class="font-bold text-white text-lg truncate">${app.companyName}</h3>
+                                    <p class="text-indigo-400 text-sm truncate">${app.role}</p>
+                                </div>
+                                <span class="stage-pill ${stage.color} text-white text-xs px-2 py-1 rounded-full flex items-center gap-1 ml-2 flex-shrink-0">
+                                    <i class="fas ${stage.icon} text-xs"></i>
+                                    <span class="hidden sm:inline">${stage.name}</span>
+                                </span>
+                            </div>
+                            
+                            <div class="space-y-2 text-sm text-gray-400">
+                                ${app.hrName ? `<div class="flex items-center gap-2 truncate"><i class="fas fa-user-tie w-4 flex-shrink-0"></i><span class="truncate">${app.hrName}</span></div>` : ''}
+                                ${app.opportunityType ? `<div class="flex items-center gap-2"><i class="fas fa-briefcase w-4 flex-shrink-0"></i>${app.opportunityType} ${app.location ? '• ' + app.location : ''}</div>` : ''}
+                                ${app.salary ? `<div class="flex items-center gap-2"><i class="fas fa-money-bill-wave w-4 flex-shrink-0"></i>${app.salary}</div>` : ''}
+                            </div>
+
+                            ${app.finalResult ? `
+                                <div class="mt-3 pt-3 border-t border-gray-700">
+                                    <span class="text-sm ${RESULT_LABELS[app.finalResult]?.class || 'text-gray-400'}">
+                                        ${RESULT_LABELS[app.finalResult]?.text || app.finalResult}
+                                    </span>
+                                </div>
+                            ` : ''}
+                        </div>
+                        
+                        <div class="bg-gray-900/50 px-4 py-3 border-t border-gray-700">
+                            <div class="flex justify-between items-center text-xs">
+                                <span class="text-gray-500">
+                                    <i class="fas fa-clock mr-1"></i> ${timeAgo(app.lastUpdated)}
+                                </span>
+                                ${lastInteraction ? `
+                                    <span class="text-gray-400 truncate max-w-[60%]">
+                                        ${INTERACTION_ICONS[lastInteraction.type] || '📌'} ${lastInteraction.notes.substring(0, 25)}...
+                                    </span>
+                                ` : `
+                                    <span class="text-gray-500">No interactions</span>
+                                `}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Table View
+        function renderTableView(filtered) {
+            const thead = document.getElementById('tableHead');
+            const tbody = document.getElementById('tableBody');
+
+            // Build header based on visible columns
+            const columns = {
+                company: { label: 'Company', sortable: true, key: 'companyName' },
+                role: { label: 'Role', sortable: true, key: 'role' },
+                hr: { label: 'HR/Vendor', sortable: true, key: 'hrName' },
+                type: { label: 'Type', sortable: false },
+                location: { label: 'Location', sortable: false },
+                salary: { label: 'Salary', sortable: false },
+                stage: { label: 'Stage', sortable: true, key: 'currentStage' },
+                result: { label: 'Result', sortable: false },
+                lastAction: { label: 'Last Action', sortable: false },
+                updated: { label: 'Updated', sortable: true, key: 'lastUpdated' }
+            };
+
+            thead.innerHTML = `<tr>
+                ${visibleColumns.map(col => {
+                    const c = columns[col];
+                    const isSorted = currentSort.column === c.key;
+                    return `<th class="px-4 py-3 font-medium ${c.sortable ? 'sortable cursor-pointer' : ''}" 
+                        ${c.sortable ? `onclick="sortTable('${c.key}')"` : ''}>
+                        <div class="flex items-center gap-2">
+                            ${c.label}
+                            ${c.sortable ? `<i class="fas fa-sort${isSorted ? (currentSort.direction === 'asc' ? '-up' : '-down') : ''} sort-icon text-xs ${isSorted ? 'opacity-100 text-indigo-400' : ''}"></i>` : ''}
+                        </div>
+                    </th>`;
+                }).join('')}
+                <th class="px-4 py-3 font-medium w-20">Actions</th>
+            </tr>`;
+
+            tbody.innerHTML = filtered.map(app => {
+                const stage = STAGES[app.currentStage] || STAGES[0];
+                const lastInteraction = app.interactions?.length > 0 ? app.interactions[app.interactions.length - 1] : null;
+
+                const cellData = {
+                    company: `<div class="font-medium text-white">${app.companyName}</div>`,
+                    role: `<div class="text-indigo-400">${app.role}</div>`,
+                    hr: `<div>${app.hrName || '-'}</div><div class="text-xs text-gray-500">${app.hrContact || ''}</div>`,
+                    type: `<span class="bg-gray-700 px-2 py-1 rounded text-xs">${app.opportunityType || '-'}</span>`,
+                    location: `<div>${app.location || '-'}</div><div class="text-xs text-gray-500">${app.city || ''}</div>`,
+                    salary: `<div>${app.salary || '-'}</div>`,
+                    stage: `<span class="inline-flex items-center gap-1 ${stage.color} text-white text-xs px-2 py-1 rounded-full">
+                        <i class="fas ${stage.icon}"></i> ${stage.name}
+                    </span>`,
+                    result: app.finalResult 
+                        ? `<span class="${RESULT_LABELS[app.finalResult]?.class || ''} text-xs">${RESULT_LABELS[app.finalResult]?.text || '-'}</span>`
+                        : `<span class="text-gray-500 text-xs">In Progress</span>`,
+                    lastAction: lastInteraction 
+                        ? `<div class="text-xs">${INTERACTION_ICONS[lastInteraction.type]} ${lastInteraction.notes.substring(0, 30)}...</div>`
+                        : `<span class="text-gray-500 text-xs">-</span>`,
+                    updated: `<div class="text-xs text-gray-400">${timeAgo(app.lastUpdated)}</div>`
+                };
+
+                return `<tr class="hover:bg-gray-700/50 cursor-pointer" onclick="openDetailView('${app.id}')">
+                    ${visibleColumns.map(col => `<td class="px-4 py-3">${cellData[col]}</td>`).join('')}
+                    <td class="px-4 py-3">
+                        <div class="flex gap-2">
+                            <button onclick="event.stopPropagation(); openInteractionModal('${app.id}')" class="text-green-400 hover:text-green-300" title="Log Interaction">
+                                <i class="fas fa-plus-circle"></i>
+                            </button>
+                            <button onclick="event.stopPropagation(); openAddModal('${app.id}')" class="text-indigo-400 hover:text-indigo-300" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        function sortTable(column) {
+            if (currentSort.column === column) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.column = column;
+                currentSort.direction = 'asc';
+            }
+            renderCurrentView();
+        }
+
+        function updateTableColumns() {
+            visibleColumns = [...document.querySelectorAll('.col-toggle:checked')].map(cb => cb.dataset.col);
+            renderCurrentView();
+        }
+
+        // Kanban View
+        function renderKanbanView(filtered) {
+            const board = document.getElementById('kanbanBoard');
+            
+            // Group by stages (only show stages that have items or are key stages)
+            const stageOrder = [1, 2, 3, 4, 5, 6, 7, 8, 0];
+            
+            board.innerHTML = stageOrder.map(stageNum => {
+                const stage = STAGES[stageNum];
+                const stageApps = filtered.filter(a => a.currentStage === stageNum);
+                
+                return `
+                    <div class="kanban-column flex-shrink-0 w-72 bg-gray-800 rounded-xl border border-gray-700 overflow-hidden"
+                         data-stage="${stageNum}"
+                         ondragover="handleDragOver(event)"
+                         ondrop="handleDrop(event)"
+                         ondragleave="handleDragLeave(event)">
+                        <div class="p-3 ${stage.color} bg-opacity-20 border-b border-gray-700">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-8 h-8 rounded-full ${stage.color} flex items-center justify-center">
+                                        <i class="fas ${stage.icon} text-sm text-white"></i>
+                                    </span>
+                                    <div>
+                                        <h3 class="font-semibold text-white text-sm">${stage.name}</h3>
+                                        <p class="text-xs text-gray-400">${stageApps.length} items</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="p-2 space-y-2 min-h-[300px] max-h-[60vh] overflow-y-auto">
+                            ${stageApps.map(app => {
+                                const lastInt = app.interactions?.length > 0 ? app.interactions[app.interactions.length - 1] : null;
+                                return `
+                                    <div class="kanban-card bg-gray-900 rounded-lg p-3 border border-gray-700 hover:border-indigo-500 transition"
+                                         draggable="true"
+                                         data-id="${app.id}"
+                                         ondragstart="handleDragStart(event)"
+                                         ondragend="handleDragEnd(event)"
+                                         onclick="openDetailView('${app.id}')">
+                                        <div class="font-medium text-white text-sm mb-1">${app.companyName}</div>
+                                        <div class="text-indigo-400 text-xs mb-2">${app.role}</div>
+                                        ${app.opportunityType ? `<div class="text-xs text-gray-500 mb-2"><i class="fas fa-briefcase mr-1"></i>${app.opportunityType}</div>` : ''}
+                                        ${lastInt ? `
+                                            <div class="text-xs text-gray-400 bg-gray-800 rounded p-2 mt-2">
+                                                ${INTERACTION_ICONS[lastInt.type]} ${lastInt.notes.substring(0, 40)}...
+                                            </div>
+                                        ` : ''}
+                                        <div class="flex justify-between items-center mt-2 pt-2 border-t border-gray-700">
+                                            <span class="text-xs text-gray-500">${timeAgo(app.lastUpdated)}</span>
+                                            ${app.finalResult ? `<span class="text-xs ${RESULT_LABELS[app.finalResult]?.class}">${RESULT_LABELS[app.finalResult]?.text.split(' ')[0]}</span>` : ''}
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('') || '<div class="text-center text-gray-500 text-sm py-8">No items</div>'}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Drag and Drop for Kanban
+        let draggedItem = null;
+
+        function handleDragStart(e) {
+            draggedItem = e.target;
+            e.target.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', e.target.dataset.id);
+        }
+
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+            document.querySelectorAll('.kanban-column').forEach(col => col.classList.remove('drag-over'));
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('drag-over');
+        }
+
+        function handleDragLeave(e) {
+            e.currentTarget.classList.remove('drag-over');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            const column = e.currentTarget;
+            column.classList.remove('drag-over');
+            
+            const appId = e.dataTransfer.getData('text/plain');
+            const newStage = parseInt(column.dataset.stage);
+            
+            const app = applications.find(a => a.id === appId);
+            if (app && app.currentStage !== newStage) {
+                app.currentStage = newStage;
+                app.lastUpdated = new Date().toISOString();
+                
+                // Auto-add interaction for stage change
+                if (!app.interactions) app.interactions = [];
+                app.interactions.push({
+                    id: generateId(),
+                    type: 'update',
+                    date: new Date().toISOString(),
+                    notes: `Stage changed to: ${STAGES[newStage].name}`
+                });
+                
+                saveData();
+                renderStageCounts();
+                renderCurrentView();
+            }
+        }
+
+        // Open Add Modal
+        function openAddModal(appId = null) {
+            const modal = document.getElementById('addModal');
+            const form = document.getElementById('applicationForm');
+            const title = document.getElementById('modalTitle');
+            
+            form.reset();
+            document.getElementById('appId').value = '';
+            
+            if (appId) {
+                const app = applications.find(a => a.id === appId);
+                if (app) {
+                    title.textContent = 'Edit Application';
+                    document.getElementById('appId').value = app.id;
+                    document.getElementById('companyName').value = app.companyName || '';
+                    document.getElementById('role').value = app.role || '';
+                    document.getElementById('hrName').value = app.hrName || '';
+                    document.getElementById('hrContact').value = app.hrContact || '';
+                    document.getElementById('opportunityType').value = app.opportunityType || '';
+                    document.getElementById('location').value = app.location || '';
+                    document.getElementById('city').value = app.city || '';
+                    document.getElementById('salary').value = app.salary || '';
+                    document.getElementById('noticePeriod').value = app.noticePeriod || '';
+                    document.getElementById('keySkills').value = app.keySkills || '';
+                    document.getElementById('jdNotes').value = app.jdNotes || '';
+                    document.getElementById('currentStage').value = app.currentStage;
+                    document.getElementById('finalResult').value = app.finalResult || '';
+                }
+            } else {
+                title.textContent = 'Add New Opportunity';
+            }
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeAddModal() {
+            const modal = document.getElementById('addModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        // Save application
+        document.getElementById('applicationForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const appId = document.getElementById('appId').value;
+            const now = new Date().toISOString();
+            
+            const appData = {
+                companyName: document.getElementById('companyName').value,
+                role: document.getElementById('role').value,
+                hrName: document.getElementById('hrName').value,
+                hrContact: document.getElementById('hrContact').value,
+                opportunityType: document.getElementById('opportunityType').value,
+                location: document.getElementById('location').value,
+                city: document.getElementById('city').value,
+                salary: document.getElementById('salary').value,
+                noticePeriod: document.getElementById('noticePeriod').value,
+                keySkills: document.getElementById('keySkills').value,
+                jdNotes: document.getElementById('jdNotes').value,
+                currentStage: parseInt(document.getElementById('currentStage').value),
+                finalResult: document.getElementById('finalResult').value,
+                lastUpdated: now
+            };
+
+            if (appId) {
+                const index = applications.findIndex(a => a.id === appId);
+                if (index !== -1) {
+                    applications[index] = { ...applications[index], ...appData };
+                }
+            } else {
+                appData.id = generateId();
+                appData.createdAt = now;
+                appData.interactions = [];
+                applications.push(appData);
+            }
+
+            saveData();
+            closeAddModal();
+            initializeFilters();
+            renderStageCounts();
+            renderCurrentView();
+            
+            if (appId) {
+                openDetailView(appId);
+            }
+        });
+
+        // Open Detail View
+        function openDetailView(appId) {
+            const app = applications.find(a => a.id === appId);
+            if (!app) return;
+
+            const modal = document.getElementById('detailModal');
+            const panel = document.getElementById('detailPanel');
+            const stage = STAGES[app.currentStage] || STAGES[0];
+
+            panel.innerHTML = `
+                <div class="sticky top-0 bg-gray-800 border-b border-gray-700 p-4 z-10">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h2 class="text-xl font-bold text-white">${app.companyName}</h2>
+                            <p class="text-indigo-400">${app.role}</p>
+                        </div>
+                        <button onclick="closeDetailView()" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+                    </div>
+                    <div class="flex flex-wrap gap-2 mt-3">
+                        <span class="${stage.color} text-white text-sm px-3 py-1 rounded-full flex items-center gap-2">
+                            <i class="fas ${stage.icon}"></i>
+                            Stage ${app.currentStage}: ${stage.name}
+                        </span>
+                        ${app.finalResult ? `
+                            <span class="bg-gray-700 text-sm px-3 py-1 rounded-full ${RESULT_LABELS[app.finalResult]?.class}">
+                                ${RESULT_LABELS[app.finalResult]?.text}
+                            </span>
+                        ` : ''}
+                    </div>
+                </div>
+
+                <div class="p-4 space-y-6">
+                    <div class="flex gap-2 flex-wrap">
+                        <button onclick="openInteractionModal('${app.id}')" class="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
+                            <i class="fas fa-plus"></i> Log Interaction
+                        </button>
+                        <button onclick="closeDetailView(); openAddModal('${app.id}')" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button onclick="deleteApplication('${app.id}')" class="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    </div>
+
+                    ${app.interactions && app.interactions.length > 0 ? `
+                        <div class="bg-indigo-900/30 border border-indigo-700 rounded-xl p-4">
+                            <div class="flex items-center gap-2 text-indigo-400 text-sm font-medium mb-1">
+                                <span class="pulse-dot w-2 h-2 bg-indigo-400 rounded-full"></span>
+                                Last Action Taken
+                            </div>
+                            <p class="text-white">${INTERACTION_ICONS[app.interactions[app.interactions.length - 1].type]} ${app.interactions[app.interactions.length - 1].notes}</p>
+                            <p class="text-gray-400 text-sm mt-1">${formatDateTime(app.interactions[app.interactions.length - 1].date)}</p>
+                        </div>
+                    ` : ''}
+
+                    <div class="bg-gray-900/50 rounded-xl p-4">
+                        <h3 class="font-semibold text-white mb-3 flex items-center gap-2">
+                            <i class="fas fa-info-circle text-indigo-400"></i> Opportunity Details
+                        </h3>
+                        <div class="grid grid-cols-2 gap-4 text-sm">
+                            ${app.hrName ? `<div><span class="text-gray-500">HR/Vendor:</span><p class="text-white">${app.hrName}</p></div>` : ''}
+                            ${app.hrContact ? `<div><span class="text-gray-500">Contact:</span><p class="text-white">${app.hrContact}</p></div>` : ''}
+                            ${app.opportunityType ? `<div><span class="text-gray-500">Type:</span><p class="text-white">${app.opportunityType}</p></div>` : ''}
+                            ${app.location ? `<div><span class="text-gray-500">Work Mode:</span><p class="text-white">${app.location}${app.city ? ' - ' + app.city : ''}</p></div>` : ''}
+                            ${app.salary ? `<div><span class="text-gray-500">Salary/Rate:</span><p class="text-white">${app.salary}</p></div>` : ''}
+                            ${app.noticePeriod ? `<div><span class="text-gray-500">Notice Period:</span><p class="text-white">${app.noticePeriod}</p></div>` : ''}
+                            <div><span class="text-gray-500">Created:</span><p class="text-white">${formatDate(app.createdAt)}</p></div>
+                            <div><span class="text-gray-500">Last Updated:</span><p class="text-white">${formatDateTime(app.lastUpdated)}</p></div>
+                        </div>
+                        ${app.keySkills ? `
+                            <div class="mt-4">
+                                <span class="text-gray-500 text-sm">Key Skills:</span>
+                                <div class="flex flex-wrap gap-2 mt-1">
+                                    ${app.keySkills.split(',').map(skill => `<span class="bg-gray-700 text-gray-300 px-2 py-1 rounded text-xs">${skill.trim()}</span>`).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                        ${app.jdNotes ? `
+                            <div class="mt-4">
+                                <span class="text-gray-500 text-sm">JD/Notes:</span>
+                                <p class="text-gray-300 text-sm mt-1 whitespace-pre-wrap">${app.jdNotes}</p>
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    <div class="bg-gray-900/50 rounded-xl p-4">
+                        <h3 class="font-semibold text-white mb-3 flex items-center gap-2">
+                            <i class="fas fa-tasks text-indigo-400"></i> Your Process Stages
+                        </h3>
+                        <div class="space-y-2">
+                            ${[1,2,3,4,5,6,7,8].map(s => {
+                                const stageInfo = STAGES[s];
+                                const isCompleted = app.currentStage >= s;
+                                const isCurrent = app.currentStage === s;
+                                return `
+                                    <div class="flex items-center gap-3 ${isCompleted ? 'text-white' : 'text-gray-500'}">
+                                        <div class="w-8 h-8 rounded-full ${isCurrent ? stageInfo.color : isCompleted ? 'bg-green-600' : 'bg-gray-700'} flex items-center justify-center flex-shrink-0">
+                                            ${isCompleted && !isCurrent ? '<i class="fas fa-check text-sm"></i>' : `<span class="text-sm font-bold">${s}</span>`}
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <p class="font-medium ${isCurrent ? 'text-indigo-400' : ''}">${stageInfo.name}</p>
+                                            <p class="text-xs text-gray-500 truncate">${stageInfo.desc}</p>
+                                        </div>
+                                        ${isCurrent ? '<span class="pulse-dot w-2 h-2 bg-indigo-400 rounded-full flex-shrink-0"></span>' : ''}
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-900/50 rounded-xl p-4">
+                        <h3 class="font-semibold text-white mb-3 flex items-center gap-2">
+                            <i class="fas fa-history text-indigo-400"></i> Interaction Timeline
+                        </h3>
+                        ${app.interactions && app.interactions.length > 0 ? `
+                            <div class="space-y-3">
+                                ${[...app.interactions].reverse().map(int => `
+                                    <div class="flex gap-3 border-l-2 border-gray-700 pl-4 pb-3">
+                                        <div class="flex-1">
+                                            <div class="flex items-center gap-2 text-sm">
+                                                <span class="text-lg">${INTERACTION_ICONS[int.type] || '📌'}</span>
+                                                <span class="text-gray-400">${formatDateTime(int.date)}</span>
+                                            </div>
+                                            <p class="text-white mt-1">${int.notes}</p>
+                                        </div>
+                                        <button onclick="deleteInteraction('${app.id}', '${int.id}')" class="text-gray-500 hover:text-red-400 flex-shrink-0">
+                                            <i class="fas fa-trash-alt text-xs"></i>
+                                        </button>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : `
+                            <p class="text-gray-500 text-sm">No interactions logged yet.</p>
+                        `}
+                    </div>
+                </div>
+            `;
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeDetailView() {
+            document.getElementById('detailModal').classList.add('hidden');
+        }
+
+        // Interaction Modal
+        function openInteractionModal(appId) {
+            const modal = document.getElementById('interactionModal');
+            document.getElementById('interactionForm').reset();
+            document.getElementById('interactionAppId').value = appId;
+            document.getElementById('interactionDate').value = new Date().toISOString().slice(0, 16);
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeInteractionModal() {
+            const modal = document.getElementById('interactionModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        document.getElementById('interactionForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const appId = document.getElementById('interactionAppId').value;
+            const app = applications.find(a => a.id === appId);
+            if (!app) return;
+
+            const interaction = {
+                id: generateId(),
+                type: document.getElementById('interactionType').value,
+                date: document.getElementById('interactionDate').value,
+                notes: document.getElementById('interactionNotes').value
+            };
+
+            if (!app.interactions) app.interactions = [];
+            app.interactions.push(interaction);
+            app.lastUpdated = new Date().toISOString();
+
+            const newStage = document.getElementById('interactionStage').value;
+            if (newStage) {
+                app.currentStage = parseInt(newStage);
+            }
+
+            saveData();
+            closeInteractionModal();
+            renderStageCounts();
+            renderCurrentView();
+            openDetailView(appId);
+        });
+
+        function deleteInteraction(appId, intId) {
+            if (!confirm('Delete this interaction?')) return;
+            
+            const app = applications.find(a => a.id === appId);
+            if (app && app.interactions) {
+                app.interactions = app.interactions.filter(i => i.id !== intId);
+                app.lastUpdated = new Date().toISOString();
+                saveData();
+                openDetailView(appId);
+            }
+        }
+
+        function deleteApplication(appId) {
+            if (!confirm('Delete this application? This cannot be undone.')) return;
+            
+            applications = applications.filter(a => a.id !== appId);
+            saveData();
+            closeDetailView();
+            initializeFilters();
+            renderStageCounts();
+            renderCurrentView();
+        }
+
+        // Close modals on escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeAddModal();
+                closeDetailView();
+                closeInteractionModal();
+            }
+        });
+
+        // Initial render
+        initializeFilters();
+        renderStageCounts();
+        renderCurrentView();
+    </script>
+</body>
+</html>

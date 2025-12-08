@@ -1,0 +1,17 @@
+{
+    "name": "job-hunt-tracker",
+    "version": "2.0.0",
+    "description": "Personal Job Hunt Tracker - Track opportunities, interactions & milestones",
+    "type": "module",
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "preview": "vite preview"
+    },
+    "dependencies": {
+        "chart.js": "^4.4.1"
+    },
+    "devDependencies": {
+        "vite": "^5.0.10"
+    }
+}
