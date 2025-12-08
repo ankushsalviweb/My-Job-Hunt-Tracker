@@ -2,6 +2,10 @@ import { getEngine } from '../core/ApplicationEngine.js';
 import { STAGES, STAGE_ORDER } from '../core/constants/stages.js';
 import { RESULT_LABELS, RESULT_KEYS } from '../core/constants/results.js';
 import { INTERACTION_TYPES } from '../core/constants/interactions.js';
+import { getInterviewService } from '../core/services/InterviewService.js';
+import { getNotificationService } from '../core/services/NotificationService.js';
+import { getSettingsService } from '../core/services/SettingsService.js';
+import { downloadICS } from '../core/utils/icsExport.js';
 import {
     renderStageCounts,
     renderCardView,
@@ -16,6 +20,11 @@ import {
     renderResultsChart,
     renderTimelineChart
 } from './analytics.js';
+import {
+    renderCalendarView,
+    renderUpcomingInterviewsWidget,
+    renderInterviewDetail
+} from './calendar.js';
 
 /**
  * Main UI Controller - Connects the engine to the DOM
@@ -25,6 +34,10 @@ export class UIController {
         this.engine = getEngine();
         this.currentView = 'card';
         this.visibleColumns = ['company', 'role', 'hr', 'type', 'location', 'salary', 'stage', 'lastAction', 'updated'];
+
+        // Calendar state
+        this.calendarView = 'month'; // 'month' | 'week' | 'day'
+        this.calendarDate = new Date();
 
         // Bind methods
         this.render = this.render.bind(this);
@@ -40,7 +53,30 @@ export class UIController {
         this.engine.init();
         this.setupEventListeners();
         this.initializeFilterOptions();
+        this.setupNotifications();
         this.render();
+    }
+
+    /**
+     * Setup browser notifications
+     */
+    setupNotifications() {
+        const notificationService = getNotificationService();
+
+        // Request permission on first load
+        notificationService.requestPermission();
+
+        // Start reminder scheduler
+        notificationService.startReminderScheduler();
+
+        // Listen for interview reminders
+        window.addEventListener('interview-reminder', (e) => {
+            const { interview } = e.detail;
+            const application = this.engine.getById(interview.applicationId);
+            if (application) {
+                notificationService.showInterviewReminder(interview, application);
+            }
+        });
     }
 
     /**
@@ -60,6 +96,8 @@ export class UIController {
                 this.closeAddModal();
                 this.closeDetail();
                 this.closeInteractionModal();
+                this.closeScheduleInterviewModal();
+                this.closeInterviewDetail();
             }
         });
 
@@ -94,6 +132,19 @@ export class UIController {
         // Search input
         document.getElementById('searchInput')?.addEventListener('input', (e) => {
             this.engine.setFilters({ search: e.target.value });
+        });
+
+        // Interview schedule form submit
+        document.getElementById('interviewScheduleForm')?.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleInterviewScheduleSubmit();
+        });
+
+        // Interview mode change - toggle meeting link/location fields
+        document.getElementById('interviewMode')?.addEventListener('change', (e) => {
+            const isOnsite = e.target.value === 'onsite';
+            document.getElementById('meetingLinkField')?.classList.toggle('hidden', isOnsite);
+            document.getElementById('locationField')?.classList.toggle('hidden', !isOnsite);
         });
     }
 
@@ -227,9 +278,11 @@ export class UIController {
         switch (this.currentView) {
             case 'card':
                 this.renderCardView(filtered, isEmpty);
+                this.renderUpcomingInterviewsWidget();
                 break;
             case 'table':
                 this.renderTableView(filtered, isEmpty);
+                this.renderUpcomingInterviewsWidget();
                 break;
             case 'kanban':
                 this.renderKanbanView(filtered, isEmpty);
@@ -237,6 +290,35 @@ export class UIController {
             case 'analytics':
                 this.renderAnalyticsView();
                 break;
+            case 'calendar':
+                this.renderCalendar();
+                break;
+        }
+    }
+
+    /**
+     * Render upcoming interviews widget
+     */
+    renderUpcomingInterviewsWidget() {
+        const widget = document.getElementById('upcomingInterviewsWidget');
+        if (widget && (this.currentView === 'card' || this.currentView === 'table')) {
+            widget.innerHTML = renderUpcomingInterviewsWidget(5);
+            widget.classList.remove('hidden');
+        } else if (widget) {
+            widget.classList.add('hidden');
+        }
+    }
+
+    /**
+     * Render calendar view
+     */
+    renderCalendar() {
+        const container = document.getElementById('calendarView');
+        if (container) {
+            container.innerHTML = renderCalendarView(
+                this.calendarView,
+                this.calendarDate
+            );
         }
     }
 
@@ -715,5 +797,250 @@ export class UIController {
 
         this.engine.removeInteraction(appId, interactionId);
         this.openDetail(appId);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // CALENDAR HANDLERS
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Navigate calendar (prev/next/today)
+     */
+    calendarNavigate(direction) {
+        if (direction === 'today') {
+            this.calendarDate = new Date();
+        } else if (direction === 'prev') {
+            if (this.calendarView === 'month') {
+                this.calendarDate.setMonth(this.calendarDate.getMonth() - 1);
+            } else if (this.calendarView === 'week') {
+                this.calendarDate.setDate(this.calendarDate.getDate() - 7);
+            } else {
+                this.calendarDate.setDate(this.calendarDate.getDate() - 1);
+            }
+        } else if (direction === 'next') {
+            if (this.calendarView === 'month') {
+                this.calendarDate.setMonth(this.calendarDate.getMonth() + 1);
+            } else if (this.calendarView === 'week') {
+                this.calendarDate.setDate(this.calendarDate.getDate() + 7);
+            } else {
+                this.calendarDate.setDate(this.calendarDate.getDate() + 1);
+            }
+        }
+        this.renderCalendar();
+    }
+
+    /**
+     * Change calendar view type
+     */
+    setCalendarView(view) {
+        this.calendarView = view;
+        this.renderCalendar();
+    }
+
+    /**
+     * Handle click on calendar day
+     */
+    calendarDayClick(dateIso) {
+        this.calendarDate = new Date(dateIso);
+        this.calendarView = 'day';
+        this.renderCalendar();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // INTERVIEW HANDLERS
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Open interview schedule modal
+     */
+    openScheduleInterviewModal(appId = null, dateTime = null) {
+        const modal = document.getElementById('interviewScheduleModal');
+        const form = document.getElementById('interviewScheduleForm');
+        const title = document.getElementById('interviewModalTitle');
+
+        form?.reset();
+        document.getElementById('interviewId').value = '';
+        title.textContent = 'Schedule Interview';
+
+        // Populate application dropdown
+        this.populateApplicationDropdown(appId);
+
+        // Populate type/mode dropdowns
+        this.populateInterviewTypeDropdown();
+        this.populateInterviewModeDropdown();
+
+        // Pre-fill date if provided
+        if (dateTime) {
+            const dt = new Date(dateTime);
+            document.getElementById('interviewDateTime').value = dt.toISOString().slice(0, 16);
+        }
+
+        // Pre-select application if provided
+        if (appId) {
+            document.getElementById('interviewAppSelect').value = appId;
+        }
+
+        modal?.classList.remove('hidden');
+        modal?.classList.add('flex');
+    }
+
+    /**
+     * Populate application dropdown
+     */
+    populateApplicationDropdown(preselectedId = null) {
+        const select = document.getElementById('interviewAppSelect');
+        if (!select) return;
+
+        const apps = this.engine.getAll().filter(a => a.currentStage > 0 && a.currentStage <= 7);
+        select.innerHTML = `<option value="">Select application...</option>` +
+            apps.map(a => `<option value="${a.id}" ${a.id === preselectedId ? 'selected' : ''}>${a.companyName} - ${a.role}</option>`).join('');
+    }
+
+    /**
+     * Populate interview type dropdown
+     */
+    populateInterviewTypeDropdown() {
+        const select = document.getElementById('interviewType');
+        if (!select) return;
+
+        const types = this.engine.getInterviewTypes();
+        select.innerHTML = Object.entries(types).map(([key, info]) =>
+            `<option value="${key}"><i class="fas ${info.icon}"></i> ${info.name}</option>`
+        ).join('');
+    }
+
+    /**
+     * Populate interview mode dropdown
+     */
+    populateInterviewModeDropdown() {
+        const select = document.getElementById('interviewMode');
+        if (!select) return;
+
+        const modes = this.engine.getInterviewModes();
+        select.innerHTML = Object.entries(modes).map(([key, info]) =>
+            `<option value="${key}">${info.name}</option>`
+        ).join('');
+    }
+
+    /**
+     * Close interview schedule modal
+     */
+    closeScheduleInterviewModal() {
+        const modal = document.getElementById('interviewScheduleModal');
+        modal?.classList.add('hidden');
+        modal?.classList.remove('flex');
+    }
+
+    /**
+     * Handle interview schedule form submit
+     */
+    handleInterviewScheduleSubmit() {
+        const interviewId = document.getElementById('interviewId').value;
+        const appId = document.getElementById('interviewAppSelect').value;
+
+        const data = {
+            type: document.getElementById('interviewType').value,
+            mode: document.getElementById('interviewMode').value,
+            scheduledAt: new Date(document.getElementById('interviewDateTime').value).toISOString(),
+            duration: parseInt(document.getElementById('interviewDuration').value),
+            meetingLink: document.getElementById('interviewMeetingLink')?.value || '',
+            location: document.getElementById('interviewLocation')?.value || '',
+            interviewerName: document.getElementById('interviewerName').value,
+            reminderMinutes: parseInt(document.getElementById('interviewReminder').value),
+            notes: document.getElementById('interviewNotes').value
+        };
+
+        let result;
+        if (interviewId) {
+            result = this.engine.updateInterview(interviewId, data);
+        } else {
+            result = this.engine.scheduleInterview(appId, data);
+        }
+
+        if (result.success) {
+            this.closeScheduleInterviewModal();
+            this.render();
+        } else {
+            alert(result.errors.join('\n'));
+        }
+    }
+
+    /**
+     * View interview detail
+     */
+    viewInterview(interviewId) {
+        const modal = document.getElementById('interviewDetailModal');
+        const panel = document.getElementById('interviewDetailPanel');
+
+        if (panel) {
+            panel.innerHTML = renderInterviewDetail(interviewId);
+        }
+
+        modal?.classList.remove('hidden');
+    }
+
+    /**
+     * Close interview detail panel
+     */
+    closeInterviewDetail() {
+        document.getElementById('interviewDetailModal')?.classList.add('hidden');
+    }
+
+    /**
+     * Edit interview (opens schedule modal with pre-filled data)
+     */
+    editInterview(interviewId) {
+        const interviewService = getInterviewService();
+        const interview = interviewService.getById(interviewId);
+        if (!interview) return;
+
+        this.closeInterviewDetail();
+        this.openScheduleInterviewModal(interview.applicationId);
+
+        // Pre-fill form
+        document.getElementById('interviewId').value = interview.id;
+        document.getElementById('interviewModalTitle').textContent = 'Edit Interview';
+        document.getElementById('interviewType').value = interview.type;
+        document.getElementById('interviewMode').value = interview.mode;
+        document.getElementById('interviewDateTime').value = new Date(interview.scheduledAt).toISOString().slice(0, 16);
+        document.getElementById('interviewDuration').value = interview.duration;
+        document.getElementById('interviewMeetingLink').value = interview.meetingLink || '';
+        document.getElementById('interviewLocation').value = interview.location || '';
+        document.getElementById('interviewerName').value = interview.interviewerName || '';
+        document.getElementById('interviewReminder').value = interview.reminderMinutes;
+        document.getElementById('interviewNotes').value = interview.notes || '';
+
+        // Toggle fields based on mode
+        const isOnsite = interview.mode === 'onsite';
+        document.getElementById('meetingLinkField')?.classList.toggle('hidden', isOnsite);
+        document.getElementById('locationField')?.classList.toggle('hidden', !isOnsite);
+    }
+
+    /**
+     * Delete interview with confirmation
+     */
+    deleteInterviewConfirm(interviewId) {
+        if (!confirm('Delete this interview?')) return;
+
+        this.engine.deleteInterview(interviewId);
+        this.closeInterviewDetail();
+        this.render();
+    }
+
+    /**
+     * Export interview to ICS file
+     */
+    exportInterviewICS(interviewId) {
+        const interviewService = getInterviewService();
+        const interview = interviewService.getById(interviewId);
+        if (!interview) return;
+
+        const application = this.engine.getById(interview.applicationId);
+        if (!application) return;
+
+        const types = this.engine.getInterviewTypes();
+        const modes = this.engine.getInterviewModes();
+
+        downloadICS(interview, application, types, modes);
     }
 }

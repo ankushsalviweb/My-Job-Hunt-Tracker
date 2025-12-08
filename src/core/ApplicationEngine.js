@@ -4,6 +4,8 @@ import { StorageService } from './services/StorageService.js';
 import { FilterService } from './services/FilterService.js';
 import { SortService } from './services/SortService.js';
 import { AnalyticsService } from './services/AnalyticsService.js';
+import { getInterviewService } from './services/InterviewService.js';
+import { getSettingsService } from './services/SettingsService.js';
 import { STAGES } from './constants/stages.js';
 
 /**
@@ -387,6 +389,115 @@ export class ApplicationEngine {
                 console.error('Error in subscriber callback:', error);
             }
         });
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // INTERVIEW MANAGEMENT
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Schedule a new interview for an application
+     * Automatically moves the application to Stage 5 (Interview Set) if currently at Stage 4 or below
+     * @param {string} appId
+     * @param {Partial<import('./models/Interview.js').InterviewData>} interviewData
+     * @returns {{success: boolean, data?: import('./models/Interview.js').InterviewData, errors?: string[]}}
+     */
+    scheduleInterview(appId, interviewData) {
+        const app = this.getById(appId);
+        if (!app) {
+            return { success: false, errors: ['Application not found'] };
+        }
+
+        const interviewService = getInterviewService();
+        const result = interviewService.create({
+            ...interviewData,
+            applicationId: appId
+        });
+
+        if (result.success) {
+            // Auto-update stage to 5 (Interview Set) if appropriate
+            if (app.currentStage >= 1 && app.currentStage <= 4) {
+                this.moveToStage(appId, 5);
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * Get all interviews for an application
+     * @param {string} appId
+     * @returns {import('./models/Interview.js').InterviewData[]}
+     */
+    getInterviewsForApplication(appId) {
+        const interviewService = getInterviewService();
+        return interviewService.getByApplication(appId);
+    }
+
+    /**
+     * Get upcoming interviews across all applications
+     * @param {number} [limit=5]
+     * @returns {Array<{interview: import('./models/Interview.js').InterviewData, application: ApplicationData}>}
+     */
+    getUpcomingInterviews(limit = 5) {
+        const interviewService = getInterviewService();
+        const interviews = interviewService.getUpcoming(limit);
+
+        return interviews.map(interview => ({
+            interview,
+            application: this.getById(interview.applicationId)
+        })).filter(item => item.application); // Filter out orphaned interviews
+    }
+
+    /**
+     * Get today's interviews
+     * @returns {Array<{interview: import('./models/Interview.js').InterviewData, application: ApplicationData}>}
+     */
+    getTodaysInterviews() {
+        const interviewService = getInterviewService();
+        const interviews = interviewService.getToday();
+
+        return interviews.map(interview => ({
+            interview,
+            application: this.getById(interview.applicationId)
+        })).filter(item => item.application);
+    }
+
+    /**
+     * Update an interview
+     * @param {string} interviewId
+     * @param {Partial<import('./models/Interview.js').InterviewData>} data
+     * @returns {{success: boolean, data?: import('./models/Interview.js').InterviewData, errors?: string[]}}
+     */
+    updateInterview(interviewId, data) {
+        const interviewService = getInterviewService();
+        return interviewService.update(interviewId, data);
+    }
+
+    /**
+     * Delete an interview
+     * @param {string} interviewId
+     * @returns {boolean}
+     */
+    deleteInterview(interviewId) {
+        const interviewService = getInterviewService();
+        return interviewService.delete(interviewId);
+    }
+
+    /**
+     * Get interview types (including user customizations)
+     * @returns {Object.<string, {name: string, icon: string}>}
+     */
+    getInterviewTypes() {
+        return getSettingsService().getInterviewTypes();
+    }
+
+    /**
+     * Get interview modes (including user customizations)
+     * @returns {Object.<string, {name: string, icon: string}>}
+     */
+    getInterviewModes() {
+        return getSettingsService().getInterviewModes();
     }
 
     // ═══════════════════════════════════════════════════════════════

@@ -10,16 +10,16 @@ import { timeAgo, formatDate, formatDateTime } from '../core/utils/dateUtils.js'
  * @returns {string}
  */
 export function renderStageCounts(counts, onStageClick) {
-    return STAGE_ORDER.map(stage => {
-        const info = STAGES[stage];
-        return `
+  return STAGE_ORDER.map(stage => {
+    const info = STAGES[stage];
+    return `
       <div class="stage-pill ${info.color} bg-opacity-20 border border-opacity-30 ${info.color.replace('bg-', 'border-')} rounded-xl p-2 sm:p-3 text-center cursor-pointer hover:bg-opacity-30" 
            data-stage="${stage}" onclick="window.app.filterByStage(${stage})">
         <div class="text-xl sm:text-2xl font-bold text-white">${counts[stage] || 0}</div>
         <div class="text-xs text-gray-300 truncate">${info.name}</div>
       </div>
     `;
-    }).join('');
+  }).join('');
 }
 
 /**
@@ -28,12 +28,12 @@ export function renderStageCounts(counts, onStageClick) {
  * @returns {string}
  */
 export function renderCard(app) {
-    const stage = getStage(app.currentStage);
-    const lastInteraction = app.interactions?.length > 0
-        ? app.interactions[app.interactions.length - 1]
-        : null;
+  const stage = getStage(app.currentStage);
+  const lastInteraction = app.interactions?.length > 0
+    ? app.interactions[app.interactions.length - 1]
+    : null;
 
-    return `
+  return `
     <div class="card-hover bg-gray-800 rounded-xl border border-gray-700 overflow-hidden transition cursor-pointer" 
          onclick="window.app.openDetail('${app.id}')">
       <div class="p-4">
@@ -68,7 +68,12 @@ export function renderCard(app) {
           <span class="text-gray-500">
             <i class="fas fa-clock mr-1"></i> ${timeAgo(app.lastUpdated)}
           </span>
-          ${lastInteraction ? `
+          ${app.currentStage === 4 ? `
+            <button onclick="event.stopPropagation(); window.app.openScheduleInterviewModal('${app.id}')" 
+              class="bg-green-600 hover:bg-green-500 text-white px-2 py-1 rounded text-xs font-medium transition flex items-center gap-1">
+              <i class="fas fa-calendar-plus"></i> Schedule Interview
+            </button>
+          ` : lastInteraction ? `
             <span class="text-gray-400 truncate max-w-[60%]">
               ${getInteractionIcon(lastInteraction.type)} ${escapeHtml(lastInteraction.notes.substring(0, 25))}...
             </span>
@@ -87,10 +92,10 @@ export function renderCard(app) {
  * @returns {string}
  */
 export function renderCardView(applications) {
-    if (applications.length === 0) {
-        return '';
-    }
-    return applications.map(app => renderCard(app)).join('');
+  if (applications.length === 0) {
+    return '';
+  }
+  return applications.map(app => renderCard(app)).join('');
 }
 
 /**
@@ -100,32 +105,32 @@ export function renderCardView(applications) {
  * @returns {string}
  */
 export function renderTableHeader(visibleColumns, currentSort) {
-    const columns = {
-        company: { label: 'Company', sortable: true, key: 'companyName' },
-        role: { label: 'Role', sortable: true, key: 'role' },
-        hr: { label: 'HR/Vendor', sortable: true, key: 'hrName' },
-        type: { label: 'Type', sortable: false },
-        location: { label: 'Location', sortable: false },
-        salary: { label: 'Salary', sortable: false },
-        stage: { label: 'Stage', sortable: true, key: 'currentStage' },
-        result: { label: 'Result', sortable: false },
-        lastAction: { label: 'Last Action', sortable: false },
-        updated: { label: 'Updated', sortable: true, key: 'lastUpdated' }
-    };
+  const columns = {
+    company: { label: 'Company', sortable: true, key: 'companyName' },
+    role: { label: 'Role', sortable: true, key: 'role' },
+    hr: { label: 'HR/Vendor', sortable: true, key: 'hrName' },
+    type: { label: 'Type', sortable: false },
+    location: { label: 'Location', sortable: false },
+    salary: { label: 'Salary', sortable: false },
+    stage: { label: 'Stage', sortable: true, key: 'currentStage' },
+    result: { label: 'Result', sortable: false },
+    lastAction: { label: 'Last Action', sortable: false },
+    updated: { label: 'Updated', sortable: true, key: 'lastUpdated' }
+  };
 
-    return `<tr>
+  return `<tr>
     ${visibleColumns.map(col => {
-        const c = columns[col];
-        if (!c) return '';
-        const isSorted = currentSort.column === c.key;
-        return `<th class="px-4 py-3 font-medium ${c.sortable ? 'sortable cursor-pointer' : ''}" 
+    const c = columns[col];
+    if (!c) return '';
+    const isSorted = currentSort.column === c.key;
+    return `<th class="px-4 py-3 font-medium ${c.sortable ? 'sortable cursor-pointer' : ''}" 
           ${c.sortable ? `onclick="window.app.sortBy('${c.key}')"` : ''}>
           <div class="flex items-center gap-2">
             ${c.label}
             ${c.sortable ? `<i class="fas fa-sort${isSorted ? (currentSort.direction === 'asc' ? '-up' : '-down') : ''} sort-icon text-xs ${isSorted ? 'opacity-100 text-indigo-400' : ''}"></i>` : ''}
           </div>
         </th>`;
-    }).join('')}
+  }).join('')}
     <th class="px-4 py-3 font-medium w-20">Actions</th>
   </tr>`;
 }
@@ -137,32 +142,37 @@ export function renderTableHeader(visibleColumns, currentSort) {
  * @returns {string}
  */
 export function renderTableRow(app, visibleColumns) {
-    const stage = getStage(app.currentStage);
-    const lastInteraction = app.interactions?.length > 0 ? app.interactions[app.interactions.length - 1] : null;
+  const stage = getStage(app.currentStage);
+  const lastInteraction = app.interactions?.length > 0 ? app.interactions[app.interactions.length - 1] : null;
 
-    const cellData = {
-        company: `<div class="font-medium text-white">${escapeHtml(app.companyName)}</div>`,
-        role: `<div class="text-indigo-400">${escapeHtml(app.role)}</div>`,
-        hr: `<div>${escapeHtml(app.hrName || '-')}</div><div class="text-xs text-gray-500">${escapeHtml(app.hrContact || '')}</div>`,
-        type: `<span class="bg-gray-700 px-2 py-1 rounded text-xs">${escapeHtml(app.opportunityType || '-')}</span>`,
-        location: `<div>${escapeHtml(app.location || '-')}</div><div class="text-xs text-gray-500">${escapeHtml(app.city || '')}</div>`,
-        salary: `<div>${escapeHtml(app.salary || '-')}</div>`,
-        stage: `<span class="inline-flex items-center gap-1 ${stage.color} text-white text-xs px-2 py-1 rounded-full">
+  const cellData = {
+    company: `<div class="font-medium text-white">${escapeHtml(app.companyName)}</div>`,
+    role: `<div class="text-indigo-400">${escapeHtml(app.role)}</div>`,
+    hr: `<div>${escapeHtml(app.hrName || '-')}</div><div class="text-xs text-gray-500">${escapeHtml(app.hrContact || '')}</div>`,
+    type: `<span class="bg-gray-700 px-2 py-1 rounded text-xs">${escapeHtml(app.opportunityType || '-')}</span>`,
+    location: `<div>${escapeHtml(app.location || '-')}</div><div class="text-xs text-gray-500">${escapeHtml(app.city || '')}</div>`,
+    salary: `<div>${escapeHtml(app.salary || '-')}</div>`,
+    stage: `<span class="inline-flex items-center gap-1 ${stage.color} text-white text-xs px-2 py-1 rounded-full">
       <i class="fas ${stage.icon}"></i> ${stage.name}
     </span>`,
-        result: app.finalResult
-            ? `<span class="${getResultLabel(app.finalResult)?.class || ''} text-xs">${getResultLabel(app.finalResult)?.text || '-'}</span>`
-            : `<span class="text-gray-500 text-xs">In Progress</span>`,
-        lastAction: lastInteraction
-            ? `<div class="text-xs">${getInteractionIcon(lastInteraction.type)} ${escapeHtml(lastInteraction.notes.substring(0, 30))}...</div>`
-            : `<span class="text-gray-500 text-xs">-</span>`,
-        updated: `<div class="text-xs text-gray-400">${timeAgo(app.lastUpdated)}</div>`
-    };
+    result: app.finalResult
+      ? `<span class="${getResultLabel(app.finalResult)?.class || ''} text-xs">${getResultLabel(app.finalResult)?.text || '-'}</span>`
+      : `<span class="text-gray-500 text-xs">In Progress</span>`,
+    lastAction: lastInteraction
+      ? `<div class="text-xs">${getInteractionIcon(lastInteraction.type)} ${escapeHtml(lastInteraction.notes.substring(0, 30))}...</div>`
+      : `<span class="text-gray-500 text-xs">-</span>`,
+    updated: `<div class="text-xs text-gray-400">${timeAgo(app.lastUpdated)}</div>`
+  };
 
-    return `<tr class="hover:bg-gray-700/50 cursor-pointer" onclick="window.app.openDetail('${app.id}')">
+  return `<tr class="hover:bg-gray-700/50 cursor-pointer" onclick="window.app.openDetail('${app.id}')">
     ${visibleColumns.map(col => `<td class="px-4 py-3">${cellData[col] || ''}</td>`).join('')}
     <td class="px-4 py-3">
       <div class="flex gap-2">
+        ${app.currentStage === 4 ? `
+        <button onclick="event.stopPropagation(); window.app.openScheduleInterviewModal('${app.id}')" class="text-yellow-400 hover:text-yellow-300" title="Schedule Interview">
+          <i class="fas fa-calendar-plus"></i>
+        </button>
+        ` : ''}
         <button onclick="event.stopPropagation(); window.app.openInteractionModal('${app.id}')" class="text-green-400 hover:text-green-300" title="Log Interaction">
           <i class="fas fa-plus-circle"></i>
         </button>
@@ -182,10 +192,10 @@ export function renderTableRow(app, visibleColumns) {
  * @returns {{header: string, body: string}}
  */
 export function renderTableView(applications, visibleColumns, currentSort) {
-    return {
-        header: renderTableHeader(visibleColumns, currentSort),
-        body: applications.map(app => renderTableRow(app, visibleColumns)).join('')
-    };
+  return {
+    header: renderTableHeader(visibleColumns, currentSort),
+    body: applications.map(app => renderTableRow(app, visibleColumns)).join('')
+  };
 }
 
 /**
@@ -194,10 +204,10 @@ export function renderTableView(applications, visibleColumns, currentSort) {
  * @returns {string}
  */
 export function renderKanbanCard(app) {
-    const lastInt = app.interactions?.length > 0 ? app.interactions[app.interactions.length - 1] : null;
-    const resultLabel = getResultLabel(app.finalResult);
+  const lastInt = app.interactions?.length > 0 ? app.interactions[app.interactions.length - 1] : null;
+  const resultLabel = getResultLabel(app.finalResult);
 
-    return `
+  return `
     <div class="kanban-card bg-gray-900 rounded-lg p-3 border border-gray-700 hover:border-indigo-500 transition"
          draggable="true"
          data-id="${app.id}"
@@ -212,7 +222,12 @@ export function renderKanbanCard(app) {
       ` : ''}
       <div class="flex justify-between items-center mt-2 pt-2 border-t border-gray-700">
         <span class="text-xs text-gray-500">${timeAgo(app.lastUpdated)}</span>
-        ${resultLabel ? `<span class="text-xs ${resultLabel.class}">${resultLabel.text.split(' ')[0]}</span>` : ''}
+        ${app.currentStage === 4 ? `
+          <button onclick="event.stopPropagation(); window.app.openScheduleInterviewModal('${app.id}')" 
+            class="text-xs text-yellow-400 hover:text-yellow-300">
+            <i class="fas fa-calendar-plus mr-1"></i>Interview
+          </button>
+        ` : resultLabel ? `<span class="text-xs ${resultLabel.class}">${resultLabel.text.split(' ')[0]}</span>` : ''}
       </div>
     </div>
   `;
@@ -225,9 +240,9 @@ export function renderKanbanCard(app) {
  * @returns {string}
  */
 export function renderKanbanColumn(stageNum, apps) {
-    const stage = STAGES[stageNum];
+  const stage = STAGES[stageNum];
 
-    return `
+  return `
     <div class="kanban-column flex-shrink-0 w-72 bg-gray-800 rounded-xl border border-gray-700 overflow-hidden"
          data-stage="${stageNum}">
       <div class="p-3 ${stage.color} bg-opacity-20 border-b border-gray-700">
@@ -256,10 +271,10 @@ export function renderKanbanColumn(stageNum, apps) {
  * @returns {string}
  */
 export function renderKanbanView(applications) {
-    return STAGE_ORDER.map(stageNum => {
-        const stageApps = applications.filter(a => a.currentStage === stageNum);
-        return renderKanbanColumn(stageNum, stageApps);
-    }).join('');
+  return STAGE_ORDER.map(stageNum => {
+    const stageApps = applications.filter(a => a.currentStage === stageNum);
+    return renderKanbanColumn(stageNum, stageApps);
+  }).join('');
 }
 
 /**
@@ -268,10 +283,10 @@ export function renderKanbanView(applications) {
  * @returns {string}
  */
 export function renderDetailPanel(app) {
-    const stage = getStage(app.currentStage);
-    const resultLabel = getResultLabel(app.finalResult);
+  const stage = getStage(app.currentStage);
+  const resultLabel = getResultLabel(app.finalResult);
 
-    return `
+  return `
     <div class="sticky top-0 bg-gray-800 border-b border-gray-700 p-4 z-10">
       <div class="flex justify-between items-start">
         <div>
@@ -295,6 +310,11 @@ export function renderDetailPanel(app) {
 
     <div class="p-4 space-y-6">
       <div class="flex gap-2 flex-wrap">
+        ${app.currentStage >= 1 && app.currentStage <= 5 ? `
+        <button onclick="window.app.closeDetail(); window.app.openScheduleInterviewModal('${app.id}')" class="bg-yellow-600 hover:bg-yellow-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
+          <i class="fas fa-calendar-plus"></i> Schedule Interview
+        </button>
+        ` : ''}
         <button onclick="window.app.openInteractionModal('${app.id}')" class="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
           <i class="fas fa-plus"></i> Log Interaction
         </button>
@@ -353,10 +373,10 @@ export function renderDetailPanel(app) {
         </h3>
         <div class="space-y-2">
           ${[1, 2, 3, 4, 5, 6, 7, 8].map(s => {
-        const stageInfo = STAGES[s];
-        const isCompleted = app.currentStage >= s;
-        const isCurrent = app.currentStage === s;
-        return `
+    const stageInfo = STAGES[s];
+    const isCompleted = app.currentStage >= s;
+    const isCurrent = app.currentStage === s;
+    return `
               <div class="flex items-center gap-3 ${isCompleted ? 'text-white' : 'text-gray-500'}">
                 <div class="w-8 h-8 rounded-full ${isCurrent ? stageInfo.color : isCompleted ? 'bg-green-600' : 'bg-gray-700'} flex items-center justify-center flex-shrink-0">
                   ${isCompleted && !isCurrent ? '<i class="fas fa-check text-sm"></i>' : `<span class="text-sm font-bold">${s}</span>`}
@@ -368,7 +388,7 @@ export function renderDetailPanel(app) {
                 ${isCurrent ? '<span class="pulse-dot w-2 h-2 bg-indigo-400 rounded-full flex-shrink-0"></span>' : ''}
               </div>
             `;
-    }).join('')}
+  }).join('')}
         </div>
       </div>
 
@@ -406,7 +426,7 @@ export function renderDetailPanel(app) {
  * @returns {string}
  */
 export function renderEmptyState() {
-    return `
+  return `
     <div class="text-center py-16">
       <i class="fas fa-folder-open text-6xl text-gray-600 mb-4"></i>
       <h3 class="text-xl font-semibold text-gray-400">No applications found</h3>
@@ -421,8 +441,8 @@ export function renderEmptyState() {
  * @returns {string}
  */
 function escapeHtml(str) {
-    if (!str) return '';
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
+  if (!str) return '';
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
 }

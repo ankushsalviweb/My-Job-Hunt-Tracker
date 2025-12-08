@@ -24,7 +24,7 @@ window.app = {
     sortBy: (column) => app.sortBy(column),
     updateTableColumns: () => app.updateTableColumns(),
 
-    // Modals
+    // Application Modals
     openAddModal: () => app.openAddModal(),
     openEditModal: (id) => app.openEditModal(id),
     closeAddModal: () => app.closeAddModal(),
@@ -33,9 +33,23 @@ window.app = {
     openInteractionModal: (id) => app.openInteractionModal(id),
     closeInteractionModal: () => app.closeInteractionModal(),
 
-    // CRUD
+    // Application CRUD
     deleteApplication: (id) => app.deleteApplication(id),
-    deleteInteraction: (appId, intId) => app.deleteInteraction(appId, intId)
+    deleteInteraction: (appId, intId) => app.deleteInteraction(appId, intId),
+
+    // Calendar
+    calendarNavigate: (direction) => app.calendarNavigate(direction),
+    setCalendarView: (view) => app.setCalendarView(view),
+    calendarDayClick: (dateIso) => app.calendarDayClick(dateIso),
+
+    // Interview Management
+    openScheduleInterviewModal: (appId, dateTime) => app.openScheduleInterviewModal(appId, dateTime),
+    closeScheduleInterviewModal: () => app.closeScheduleInterviewModal(),
+    viewInterview: (id) => app.viewInterview(id),
+    closeInterviewDetail: () => app.closeInterviewDetail(),
+    editInterview: (id) => app.editInterview(id),
+    deleteInterviewConfirm: (id) => app.deleteInterviewConfirm(id),
+    exportInterviewICS: (id) => app.exportInterviewICS(id)
 };
 
 // Initialize when DOM is ready
