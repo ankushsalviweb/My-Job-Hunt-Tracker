@@ -18,6 +18,10 @@ import { generateId } from '../utils/idGenerator.js';
  * @property {string} [finalResult]
  * @property {string} [createdAt]
  * @property {string} [lastUpdated]
+ * @property {string} [createdBy] - UID of user who created
+ * @property {string} [createdByEmail] - Email of user who created
+ * @property {string} [lastModifiedBy] - UID of user who last modified
+ * @property {string} [lastModifiedByEmail] - Email of user who last modified
  * @property {import('./Interaction.js').InteractionData[]} [interactions]
  */
 

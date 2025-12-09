@@ -4,6 +4,16 @@ import { getInteractionIcon, INTERACTION_TYPES } from '../core/constants/interac
 import { timeAgo, formatDate, formatDateTime } from '../core/utils/dateUtils.js';
 
 /**
+ * Get display name from email (part before @)
+ * @param {string} email 
+ * @returns {string}
+ */
+function getDisplayName(email) {
+  if (!email) return '';
+  return email.split('@')[0];
+}
+
+/**
  * Render stage counter pills
  * @param {Object.<number, number>} counts 
  * @param {Function} onStageClick 
@@ -67,6 +77,7 @@ export function renderCard(app) {
         <div class="flex justify-between items-center text-xs">
           <span class="text-gray-500">
             <i class="fas fa-clock mr-1"></i> ${timeAgo(app.lastUpdated)}
+            ${app.lastModifiedByEmail ? `<span class="text-gray-600">by ${getDisplayName(app.lastModifiedByEmail)}</span>` : ''}
           </span>
           ${app.currentStage === 4 ? `
             <button onclick="event.stopPropagation(); window.app.openScheduleInterviewModal('${app.id}')" 
@@ -348,8 +359,8 @@ export function renderDetailPanel(app) {
           ${app.location ? `<div><span class="text-gray-500">Work Mode:</span><p class="text-white">${escapeHtml(app.location)}${app.city ? ' - ' + escapeHtml(app.city) : ''}</p></div>` : ''}
           ${app.salary ? `<div><span class="text-gray-500">Salary/Rate:</span><p class="text-white">${escapeHtml(app.salary)}</p></div>` : ''}
           ${app.noticePeriod ? `<div><span class="text-gray-500">Notice Period:</span><p class="text-white">${escapeHtml(app.noticePeriod)}</p></div>` : ''}
-          <div><span class="text-gray-500">Created:</span><p class="text-white">${formatDate(app.createdAt)}</p></div>
-          <div><span class="text-gray-500">Last Updated:</span><p class="text-white">${formatDateTime(app.lastUpdated)}</p></div>
+          <div><span class="text-gray-500">Created:</span><p class="text-white">${formatDate(app.createdAt)}${app.createdByEmail ? ` <span class="text-gray-500">by ${getDisplayName(app.createdByEmail)}</span>` : ''}</p></div>
+          <div><span class="text-gray-500">Last Updated:</span><p class="text-white">${formatDateTime(app.lastUpdated)}${app.lastModifiedByEmail ? ` <span class="text-gray-500">by ${getDisplayName(app.lastModifiedByEmail)}</span>` : ''}</p></div>
         </div>
         ${app.keySkills ? `
           <div class="mt-4">

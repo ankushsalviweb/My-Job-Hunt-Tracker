@@ -65,3 +65,19 @@ export function getWeekKey(date) {
     const weekNum = 1 + Math.round(((d - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
     return `${d.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
 }
+
+/**
+ * Convert date to local datetime string for datetime-local inputs
+ * This avoids the UTC conversion that toISOString() does
+ * @param {Date|string} date
+ * @returns {string} Format: YYYY-MM-DDTHH:mm (local time)
+ */
+export function toLocalDateTimeString(date) {
+    const d = date instanceof Date ? date : new Date(date);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+}

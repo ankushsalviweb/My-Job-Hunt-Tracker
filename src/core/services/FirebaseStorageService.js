@@ -32,14 +32,37 @@ class FirebaseStorageService {
     }
 
     /**
-     * Get the collection reference for current user
+     * Get the shared applications collection reference
      * @private
      * @returns {import('firebase/firestore').CollectionReference}
      */
     getCollectionRef() {
-        const uid = getAuthService().getUid();
-        if (!uid) throw new Error('User not authenticated');
-        return collection(db, 'users', uid, 'applications');
+        // Verify user is authenticated (access control is in Firestore rules)
+        if (!getAuthService().isAuthenticated()) {
+            throw new Error('User not authenticated');
+        }
+        return collection(db, 'applications');
+    }
+
+    /**
+     * Add user attribution to application data
+     * @private
+     * @param {ApplicationData} data
+     * @param {boolean} isNew - Whether this is a new record
+     * @returns {ApplicationData}
+     */
+    addAttribution(data, isNew = false) {
+        const auth = getAuthService();
+        const user = auth.getCurrentUser();
+        const attribution = {
+            lastModifiedBy: user?.uid || '',
+            lastModifiedByEmail: user?.email || ''
+        };
+        if (isNew) {
+            attribution.createdBy = user?.uid || '';
+            attribution.createdByEmail = user?.email || '';
+        }
+        return { ...data, ...attribution };
     }
 
     /**
@@ -113,10 +136,11 @@ class FirebaseStorageService {
      * @param {ApplicationData} application 
      * @returns {Promise<void>}
      */
-    async saveOne(application) {
+    async saveOne(application, isNew = false) {
         try {
             const docRef = doc(this.getCollectionRef(), application.id);
-            await setDoc(docRef, application);
+            const dataWithAttribution = this.addAttribution(application, isNew);
+            await setDoc(docRef, dataWithAttribution);
         } catch (error) {
             console.error('Failed to save application:', error);
             throw error;

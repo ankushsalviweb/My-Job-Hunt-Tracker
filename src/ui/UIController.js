@@ -1,4 +1,5 @@
 import { getEngine } from '../core/ApplicationEngine.js';
+import { getAuthService } from '../core/services/AuthService.js';
 import { STAGES, STAGE_ORDER } from '../core/constants/stages.js';
 import { RESULT_LABELS, RESULT_KEYS } from '../core/constants/results.js';
 import { INTERACTION_TYPES } from '../core/constants/interactions.js';
@@ -6,6 +7,7 @@ import { getInterviewService } from '../core/services/InterviewService.js';
 import { getNotificationService } from '../core/services/NotificationService.js';
 import { getSettingsService } from '../core/services/SettingsService.js';
 import { downloadICS } from '../core/utils/icsExport.js';
+import { toLocalDateTimeString } from '../core/utils/dateUtils.js';
 import {
     renderStageCounts,
     renderCardView,
@@ -54,7 +56,21 @@ export class UIController {
         this.setupEventListeners();
         this.initializeFilterOptions();
         this.setupNotifications();
+        this.updateUserDisplay();
         this.render();
+    }
+
+    /**
+     * Update user display in header
+     */
+    updateUserDisplay() {
+        const user = getAuthService().getCurrentUser();
+        const displayEl = document.getElementById('userDisplayName');
+        if (displayEl && user?.email) {
+            // Extract name part from email (before @)
+            const namePart = user.email.split('@')[0];
+            displayEl.textContent = namePart;
+        }
     }
 
     /**
@@ -740,7 +756,7 @@ export class UIController {
         const modal = document.getElementById('interactionModal');
         document.getElementById('interactionForm')?.reset();
         document.getElementById('interactionAppId').value = appId;
-        document.getElementById('interactionDate').value = new Date().toISOString().slice(0, 16);
+        document.getElementById('interactionDate').value = toLocalDateTimeString(new Date());
 
         modal?.classList.remove('hidden');
         modal?.classList.add('flex');
@@ -872,7 +888,7 @@ export class UIController {
         // Pre-fill date if provided
         if (dateTime) {
             const dt = new Date(dateTime);
-            document.getElementById('interviewDateTime').value = dt.toISOString().slice(0, 16);
+            document.getElementById('interviewDateTime').value = toLocalDateTimeString(dt);
         }
 
         // Pre-select application if provided
@@ -1002,7 +1018,7 @@ export class UIController {
         document.getElementById('interviewModalTitle').textContent = 'Edit Interview';
         document.getElementById('interviewType').value = interview.type;
         document.getElementById('interviewMode').value = interview.mode;
-        document.getElementById('interviewDateTime').value = new Date(interview.scheduledAt).toISOString().slice(0, 16);
+        document.getElementById('interviewDateTime').value = toLocalDateTimeString(new Date(interview.scheduledAt));
         document.getElementById('interviewDuration').value = interview.duration;
         document.getElementById('interviewMeetingLink').value = interview.meetingLink || '';
         document.getElementById('interviewLocation').value = interview.location || '';

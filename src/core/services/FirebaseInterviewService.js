@@ -34,14 +34,37 @@ class FirebaseInterviewService {
     }
 
     /**
-     * Get the collection reference for current user
+     * Get the shared interviews collection reference
      * @private
      * @returns {import('firebase/firestore').CollectionReference}
      */
     getCollectionRef() {
-        const uid = getAuthService().getUid();
-        if (!uid) throw new Error('User not authenticated');
-        return collection(db, 'users', uid, 'interviews');
+        // Verify user is authenticated (access control is in Firestore rules)
+        if (!getAuthService().isAuthenticated()) {
+            throw new Error('User not authenticated');
+        }
+        return collection(db, 'interviews');
+    }
+
+    /**
+     * Add user attribution to interview data
+     * @private
+     * @param {InterviewData} data
+     * @param {boolean} isNew - Whether this is a new record
+     * @returns {InterviewData}
+     */
+    addAttribution(data, isNew = false) {
+        const auth = getAuthService();
+        const user = auth.getCurrentUser();
+        const attribution = {
+            lastModifiedBy: user?.uid || '',
+            lastModifiedByEmail: user?.email || ''
+        };
+        if (isNew) {
+            attribution.createdBy = user?.uid || '';
+            attribution.createdByEmail = user?.email || '';
+        }
+        return { ...data, ...attribution };
     }
 
     /**
@@ -114,11 +137,12 @@ class FirebaseInterviewService {
         }
 
         const interview = Interview.create(data);
+        const interviewWithAttribution = this.addAttribution(interview, true);
 
         try {
             const docRef = doc(this.getCollectionRef(), interview.id);
-            await setDoc(docRef, interview);
-            return { success: true, data: interview };
+            await setDoc(docRef, interviewWithAttribution);
+            return { success: true, data: interviewWithAttribution };
         } catch (error) {
             console.error('Failed to create interview:', error);
             return { success: false, errors: ['Failed to save interview'] };
@@ -144,11 +168,12 @@ class FirebaseInterviewService {
         }
 
         const updated = Interview.update(existing, data);
+        const updatedWithAttribution = this.addAttribution(updated, false);
 
         try {
             const docRef = doc(this.getCollectionRef(), id);
-            await setDoc(docRef, updated);
-            return { success: true, data: updated };
+            await setDoc(docRef, updatedWithAttribution);
+            return { success: true, data: updatedWithAttribution };
         } catch (error) {
             console.error('Failed to update interview:', error);
             return { success: false, errors: ['Failed to update interview'] };

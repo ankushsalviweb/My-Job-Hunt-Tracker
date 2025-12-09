@@ -69,12 +69,13 @@ export const StorageAdapter = {
     /**
      * Save a single application
      * @param {import('../models/Application.js').ApplicationData} application
+     * @param {boolean} [isNew=false] - Whether this is a new record (for attribution)
      * @returns {Promise<void>}
      */
-    async saveApplication(application) {
+    async saveApplication(application, isNew = false) {
         const provider = getStorageProvider();
         if (currentProvider === PROVIDER.FIREBASE) {
-            await provider.saveOne(application);
+            await provider.saveOne(application, isNew);
         } else {
             // For local storage, we need to save all applications
             const apps = provider.load();

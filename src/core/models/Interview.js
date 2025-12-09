@@ -18,6 +18,10 @@ import { DEFAULT_REMINDER_MINUTES } from '../constants/interview-constants.js';
  * @property {boolean} reminderSent - Whether reminder was already sent
  * @property {string} [outcome] - Result notes after interview
  * @property {string} createdAt - Creation timestamp
+ * @property {string} [createdBy] - UID of user who created
+ * @property {string} [createdByEmail] - Email of user who created
+ * @property {string} [lastModifiedBy] - UID of user who last modified
+ * @property {string} [lastModifiedByEmail] - Email of user who last modified
  */
 
 /**

@@ -121,9 +121,16 @@ export class ApplicationEngine {
 
         const app = Application.create(data);
         this.applications.push(app);
-        this.save();
-        this.notify();
 
+        // Use saveOne with isNew=true for proper attribution
+        const storage = this.getStorage();
+        if (storage.saveOne) {
+            storage.saveOne(app, true); // isNew = true
+        } else {
+            this.save();
+        }
+
+        this.notify();
         return { success: true, data: app };
     }
 
@@ -146,9 +153,16 @@ export class ApplicationEngine {
 
         const updated = Application.update(this.applications[index], data);
         this.applications[index] = updated;
-        this.save();
-        this.notify();
 
+        // Use saveOne with isNew=false for proper attribution
+        const storage = this.getStorage();
+        if (storage.saveOne) {
+            storage.saveOne(updated, false); // isNew = false (update)
+        } else {
+            this.save();
+        }
+
+        this.notify();
         return { success: true, data: updated };
     }
 
