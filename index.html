@@ -15,597 +15,614 @@
 </head>
 
 <body class="bg-gray-900 text-gray-100 min-h-screen">
-    <!-- Header -->
-    <header class="bg-gradient-to-r from-indigo-900 via-purple-900 to-indigo-900 shadow-xl border-b border-indigo-700">
-        <div class="max-w-7xl mx-auto px-4 py-6">
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                    <h1 class="text-2xl sm:text-3xl font-bold text-white flex items-center gap-3">
-                        <i class="fas fa-briefcase text-indigo-400"></i>
-                        My Job Hunt Tracker
-                    </h1>
-                    <p class="text-indigo-300 mt-1 text-sm sm:text-base">Track every opportunity, interaction &
-                        milestone</p>
-                </div>
-                <button onclick="window.app.openAddModal()"
-                    class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-semibold flex items-center gap-2 transition shadow-lg text-sm sm:text-base">
-                    <i class="fas fa-plus"></i> New Opportunity
-                </button>
-            </div>
-        </div>
-    </header>
-
-    <!-- Stats Dashboard -->
-    <div class="max-w-7xl mx-auto px-4 py-6">
-        <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-9 gap-2 sm:gap-3" id="stageCounts">
-            <!-- Dynamically populated -->
-        </div>
+    <!-- Auth Screen (shown when not logged in) -->
+    <div id="authScreen" class="hidden">
+        <!-- Dynamically populated by auth.js -->
     </div>
 
-    <!-- Data Insights Section -->
-    <main class="max-w-7xl mx-auto px-4 pb-8">
-        <!-- View Switcher & Filters Bar -->
-        <div class="bg-gray-800 rounded-xl border border-gray-700 p-4 mb-6">
-            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-                <!-- View Toggle -->
-                <div class="flex items-center gap-2">
-                    <span class="text-gray-400 text-sm font-medium mr-2">View:</span>
-                    <div class="flex bg-gray-900 rounded-lg p-1">
-                        <button onclick="window.app.switchView('card')"
-                            class="view-btn active px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2"
-                            data-view="card">
-                            <i class="fas fa-th-large"></i> <span class="hidden sm:inline">Cards</span>
+    <!-- Main App Container (shown when logged in) -->
+    <div id="appContainer" class="hidden">
+        <!-- Header -->
+        <header
+            class="bg-gradient-to-r from-indigo-900 via-purple-900 to-indigo-900 shadow-xl border-b border-indigo-700">
+            <div class="max-w-7xl mx-auto px-4 py-6">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                        <h1 class="text-2xl sm:text-3xl font-bold text-white flex items-center gap-3">
+                            <i class="fas fa-briefcase text-indigo-400"></i>
+                            My Job Hunt Tracker
+                        </h1>
+                        <p class="text-indigo-300 mt-1 text-sm sm:text-base">Track every opportunity, interaction &
+                            milestone</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <button onclick="window.app.openAddModal()"
+                            class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-semibold flex items-center gap-2 transition shadow-lg text-sm sm:text-base">
+                            <i class="fas fa-plus"></i> New Opportunity
                         </button>
-                        <button onclick="window.app.switchView('table')"
-                            class="view-btn px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 text-gray-400 hover:text-white"
-                            data-view="table">
-                            <i class="fas fa-table"></i> <span class="hidden sm:inline">Table</span>
-                        </button>
-                        <button onclick="window.app.switchView('kanban')"
-                            class="view-btn px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 text-gray-400 hover:text-white"
-                            data-view="kanban">
-                            <i class="fas fa-columns"></i> <span class="hidden sm:inline">Kanban</span>
-                        </button>
-                        <button onclick="window.app.switchView('analytics')"
-                            class="view-btn px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 text-gray-400 hover:text-white"
-                            data-view="analytics">
-                            <i class="fas fa-chart-pie"></i> <span class="hidden sm:inline">Analytics</span>
-                        </button>
-                        <button onclick="window.app.switchView('calendar')"
-                            class="view-btn px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 text-gray-400 hover:text-white"
-                            data-view="calendar">
-                            <i class="fas fa-calendar-alt"></i> <span class="hidden sm:inline">Calendar</span>
+                        <button onclick="window.app.logout()" title="Sign Out"
+                            class="bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white p-2 sm:p-3 rounded-xl transition">
+                            <i class="fas fa-sign-out-alt"></i>
                         </button>
                     </div>
                 </div>
+            </div>
+        </header>
 
-                <!-- Adaptive Filters -->
-                <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
-                    <!-- Search -->
-                    <div class="relative flex-1 lg:flex-none">
-                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"></i>
-                        <input type="text" id="searchInput" placeholder="Search company, role..."
-                            class="bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-4 py-2 text-sm text-white w-full lg:w-48 focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+        <!-- Stats Dashboard -->
+        <div class="max-w-7xl mx-auto px-4 py-6">
+            <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-9 gap-2 sm:gap-3" id="stageCounts">
+                <!-- Dynamically populated -->
+            </div>
+        </div>
+
+        <!-- Data Insights Section -->
+        <main class="max-w-7xl mx-auto px-4 pb-8">
+            <!-- View Switcher & Filters Bar -->
+            <div class="bg-gray-800 rounded-xl border border-gray-700 p-4 mb-6">
+                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                    <!-- View Toggle -->
+                    <div class="flex items-center gap-2">
+                        <span class="text-gray-400 text-sm font-medium mr-2">View:</span>
+                        <div class="flex bg-gray-900 rounded-lg p-1">
+                            <button onclick="window.app.switchView('card')"
+                                class="view-btn active px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2"
+                                data-view="card">
+                                <i class="fas fa-th-large"></i> <span class="hidden sm:inline">Cards</span>
+                            </button>
+                            <button onclick="window.app.switchView('table')"
+                                class="view-btn px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 text-gray-400 hover:text-white"
+                                data-view="table">
+                                <i class="fas fa-table"></i> <span class="hidden sm:inline">Table</span>
+                            </button>
+                            <button onclick="window.app.switchView('kanban')"
+                                class="view-btn px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 text-gray-400 hover:text-white"
+                                data-view="kanban">
+                                <i class="fas fa-columns"></i> <span class="hidden sm:inline">Kanban</span>
+                            </button>
+                            <button onclick="window.app.switchView('analytics')"
+                                class="view-btn px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 text-gray-400 hover:text-white"
+                                data-view="analytics">
+                                <i class="fas fa-chart-pie"></i> <span class="hidden sm:inline">Analytics</span>
+                            </button>
+                            <button onclick="window.app.switchView('calendar')"
+                                class="view-btn px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 text-gray-400 hover:text-white"
+                                data-view="calendar">
+                                <i class="fas fa-calendar-alt"></i> <span class="hidden sm:inline">Calendar</span>
+                            </button>
+                        </div>
                     </div>
 
-                    <!-- Stage Filter -->
-                    <div class="relative">
-                        <button onclick="window.app.toggleFilterDropdown('stageFilter')"
-                            class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white flex items-center gap-2 hover:bg-gray-600">
-                            <i class="fas fa-filter text-indigo-400"></i> Stage
-                            <i class="fas fa-chevron-down text-xs"></i>
-                        </button>
-                        <div id="stageFilter"
-                            class="filter-dropdown hidden absolute top-full mt-1 left-0 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-20 min-w-[180px]">
-                            <div class="p-2">
-                                <label class="flex items-center gap-2 p-2 hover:bg-gray-700 rounded cursor-pointer">
-                                    <input type="checkbox" class="stage-filter-cb rounded" value="all" checked
-                                        onchange="window.app.applyFilters()">
-                                    <span class="text-sm">All Stages</span>
-                                </label>
-                                <div id="stageFilterOptions"></div>
+                    <!-- Adaptive Filters -->
+                    <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+                        <!-- Search -->
+                        <div class="relative flex-1 lg:flex-none">
+                            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"></i>
+                            <input type="text" id="searchInput" placeholder="Search company, role..."
+                                class="bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-4 py-2 text-sm text-white w-full lg:w-48 focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                        </div>
+
+                        <!-- Stage Filter -->
+                        <div class="relative">
+                            <button onclick="window.app.toggleFilterDropdown('stageFilter')"
+                                class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white flex items-center gap-2 hover:bg-gray-600">
+                                <i class="fas fa-filter text-indigo-400"></i> Stage
+                                <i class="fas fa-chevron-down text-xs"></i>
+                            </button>
+                            <div id="stageFilter"
+                                class="filter-dropdown hidden absolute top-full mt-1 left-0 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-20 min-w-[180px]">
+                                <div class="p-2">
+                                    <label class="flex items-center gap-2 p-2 hover:bg-gray-700 rounded cursor-pointer">
+                                        <input type="checkbox" class="stage-filter-cb rounded" value="all" checked
+                                            onchange="window.app.applyFilters()">
+                                        <span class="text-sm">All Stages</span>
+                                    </label>
+                                    <div id="stageFilterOptions"></div>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- Type Filter -->
-                    <div class="relative">
-                        <button onclick="window.app.toggleFilterDropdown('typeFilter')"
-                            class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white flex items-center gap-2 hover:bg-gray-600">
-                            <i class="fas fa-briefcase text-green-400"></i> Type
-                            <i class="fas fa-chevron-down text-xs"></i>
-                        </button>
-                        <div id="typeFilter"
-                            class="filter-dropdown hidden absolute top-full mt-1 left-0 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-20 min-w-[180px]">
-                            <div class="p-2" id="typeFilterOptions"></div>
+                        <!-- Type Filter -->
+                        <div class="relative">
+                            <button onclick="window.app.toggleFilterDropdown('typeFilter')"
+                                class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white flex items-center gap-2 hover:bg-gray-600">
+                                <i class="fas fa-briefcase text-green-400"></i> Type
+                                <i class="fas fa-chevron-down text-xs"></i>
+                            </button>
+                            <div id="typeFilter"
+                                class="filter-dropdown hidden absolute top-full mt-1 left-0 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-20 min-w-[180px]">
+                                <div class="p-2" id="typeFilterOptions"></div>
+                            </div>
                         </div>
-                    </div>
 
-                    <!-- Location Filter -->
-                    <div class="relative">
-                        <button onclick="window.app.toggleFilterDropdown('locationFilter')"
-                            class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white flex items-center gap-2 hover:bg-gray-600">
-                            <i class="fas fa-map-marker-alt text-red-400"></i> Location
-                            <i class="fas fa-chevron-down text-xs"></i>
-                        </button>
-                        <div id="locationFilter"
-                            class="filter-dropdown hidden absolute top-full mt-1 left-0 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-20 min-w-[180px]">
-                            <div class="p-2" id="locationFilterOptions"></div>
+                        <!-- Location Filter -->
+                        <div class="relative">
+                            <button onclick="window.app.toggleFilterDropdown('locationFilter')"
+                                class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white flex items-center gap-2 hover:bg-gray-600">
+                                <i class="fas fa-map-marker-alt text-red-400"></i> Location
+                                <i class="fas fa-chevron-down text-xs"></i>
+                            </button>
+                            <div id="locationFilter"
+                                class="filter-dropdown hidden absolute top-full mt-1 left-0 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-20 min-w-[180px]">
+                                <div class="p-2" id="locationFilterOptions"></div>
+                            </div>
                         </div>
-                    </div>
 
-                    <!-- Result Filter -->
-                    <div class="relative">
-                        <button onclick="window.app.toggleFilterDropdown('resultFilter')"
-                            class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white flex items-center gap-2 hover:bg-gray-600">
-                            <i class="fas fa-flag text-yellow-400"></i> Result
-                            <i class="fas fa-chevron-down text-xs"></i>
-                        </button>
-                        <div id="resultFilter"
-                            class="filter-dropdown hidden absolute top-full mt-1 right-0 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-20 min-w-[180px]">
-                            <div class="p-2" id="resultFilterOptions"></div>
+                        <!-- Result Filter -->
+                        <div class="relative">
+                            <button onclick="window.app.toggleFilterDropdown('resultFilter')"
+                                class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white flex items-center gap-2 hover:bg-gray-600">
+                                <i class="fas fa-flag text-yellow-400"></i> Result
+                                <i class="fas fa-chevron-down text-xs"></i>
+                            </button>
+                            <div id="resultFilter"
+                                class="filter-dropdown hidden absolute top-full mt-1 right-0 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-20 min-w-[180px]">
+                                <div class="p-2" id="resultFilterOptions"></div>
+                            </div>
                         </div>
-                    </div>
 
-                    <!-- Clear Filters -->
-                    <button onclick="window.app.clearFilters()"
-                        class="bg-red-600/20 border border-red-600/30 text-red-400 rounded-lg px-3 py-2 text-sm hover:bg-red-600/30 transition">
-                        <i class="fas fa-times"></i> Clear
-                    </button>
+                        <!-- Clear Filters -->
+                        <button onclick="window.app.clearFilters()"
+                            class="bg-red-600/20 border border-red-600/30 text-red-400 rounded-lg px-3 py-2 text-sm hover:bg-red-600/30 transition">
+                            <i class="fas fa-times"></i> Clear
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Active Filters Display -->
+                <div id="activeFiltersBar" class="hidden mt-3 pt-3 border-t border-gray-700">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="text-gray-500 text-sm">Active Filters:</span>
+                        <div id="activeFilterTags" class="flex flex-wrap gap-2"></div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Active Filters Display -->
-            <div id="activeFiltersBar" class="hidden mt-3 pt-3 border-t border-gray-700">
-                <div class="flex flex-wrap items-center gap-2">
-                    <span class="text-gray-500 text-sm">Active Filters:</span>
-                    <div id="activeFilterTags" class="flex flex-wrap gap-2"></div>
+            <!-- Table Column Selector (shown only in table view) -->
+            <div id="columnSelector" class="hidden bg-gray-800 rounded-xl border border-gray-700 p-4 mb-4">
+                <div class="flex flex-wrap items-center gap-3">
+                    <span class="text-gray-400 text-sm font-medium">Show Columns:</span>
+                    <label class="flex items-center gap-1 text-sm text-gray-300 cursor-pointer">
+                        <input type="checkbox" class="col-toggle rounded" data-col="company" checked
+                            onchange="window.app.updateTableColumns()"> Company
+                    </label>
+                    <label class="flex items-center gap-1 text-sm text-gray-300 cursor-pointer">
+                        <input type="checkbox" class="col-toggle rounded" data-col="role" checked
+                            onchange="window.app.updateTableColumns()"> Role
+                    </label>
+                    <label class="flex items-center gap-1 text-sm text-gray-300 cursor-pointer">
+                        <input type="checkbox" class="col-toggle rounded" data-col="hr" checked
+                            onchange="window.app.updateTableColumns()"> HR/Vendor
+                    </label>
+                    <label class="flex items-center gap-1 text-sm text-gray-300 cursor-pointer">
+                        <input type="checkbox" class="col-toggle rounded" data-col="type" checked
+                            onchange="window.app.updateTableColumns()"> Type
+                    </label>
+                    <label class="flex items-center gap-1 text-sm text-gray-300 cursor-pointer">
+                        <input type="checkbox" class="col-toggle rounded" data-col="location" checked
+                            onchange="window.app.updateTableColumns()"> Location
+                    </label>
+                    <label class="flex items-center gap-1 text-sm text-gray-300 cursor-pointer">
+                        <input type="checkbox" class="col-toggle rounded" data-col="salary" checked
+                            onchange="window.app.updateTableColumns()"> Salary
+                    </label>
+                    <label class="flex items-center gap-1 text-sm text-gray-300 cursor-pointer">
+                        <input type="checkbox" class="col-toggle rounded" data-col="stage" checked
+                            onchange="window.app.updateTableColumns()"> Stage
+                    </label>
+                    <label class="flex items-center gap-1 text-sm text-gray-300 cursor-pointer">
+                        <input type="checkbox" class="col-toggle rounded" data-col="result"
+                            onchange="window.app.updateTableColumns()"> Result
+                    </label>
+                    <label class="flex items-center gap-1 text-sm text-gray-300 cursor-pointer">
+                        <input type="checkbox" class="col-toggle rounded" data-col="lastAction" checked
+                            onchange="window.app.updateTableColumns()"> Last Action
+                    </label>
+                    <label class="flex items-center gap-1 text-sm text-gray-300 cursor-pointer">
+                        <input type="checkbox" class="col-toggle rounded" data-col="updated" checked
+                            onchange="window.app.updateTableColumns()"> Updated
+                    </label>
                 </div>
             </div>
-        </div>
 
-        <!-- Table Column Selector (shown only in table view) -->
-        <div id="columnSelector" class="hidden bg-gray-800 rounded-xl border border-gray-700 p-4 mb-4">
-            <div class="flex flex-wrap items-center gap-3">
-                <span class="text-gray-400 text-sm font-medium">Show Columns:</span>
-                <label class="flex items-center gap-1 text-sm text-gray-300 cursor-pointer">
-                    <input type="checkbox" class="col-toggle rounded" data-col="company" checked
-                        onchange="window.app.updateTableColumns()"> Company
-                </label>
-                <label class="flex items-center gap-1 text-sm text-gray-300 cursor-pointer">
-                    <input type="checkbox" class="col-toggle rounded" data-col="role" checked
-                        onchange="window.app.updateTableColumns()"> Role
-                </label>
-                <label class="flex items-center gap-1 text-sm text-gray-300 cursor-pointer">
-                    <input type="checkbox" class="col-toggle rounded" data-col="hr" checked
-                        onchange="window.app.updateTableColumns()"> HR/Vendor
-                </label>
-                <label class="flex items-center gap-1 text-sm text-gray-300 cursor-pointer">
-                    <input type="checkbox" class="col-toggle rounded" data-col="type" checked
-                        onchange="window.app.updateTableColumns()"> Type
-                </label>
-                <label class="flex items-center gap-1 text-sm text-gray-300 cursor-pointer">
-                    <input type="checkbox" class="col-toggle rounded" data-col="location" checked
-                        onchange="window.app.updateTableColumns()"> Location
-                </label>
-                <label class="flex items-center gap-1 text-sm text-gray-300 cursor-pointer">
-                    <input type="checkbox" class="col-toggle rounded" data-col="salary" checked
-                        onchange="window.app.updateTableColumns()"> Salary
-                </label>
-                <label class="flex items-center gap-1 text-sm text-gray-300 cursor-pointer">
-                    <input type="checkbox" class="col-toggle rounded" data-col="stage" checked
-                        onchange="window.app.updateTableColumns()"> Stage
-                </label>
-                <label class="flex items-center gap-1 text-sm text-gray-300 cursor-pointer">
-                    <input type="checkbox" class="col-toggle rounded" data-col="result"
-                        onchange="window.app.updateTableColumns()"> Result
-                </label>
-                <label class="flex items-center gap-1 text-sm text-gray-300 cursor-pointer">
-                    <input type="checkbox" class="col-toggle rounded" data-col="lastAction" checked
-                        onchange="window.app.updateTableColumns()"> Last Action
-                </label>
-                <label class="flex items-center gap-1 text-sm text-gray-300 cursor-pointer">
-                    <input type="checkbox" class="col-toggle rounded" data-col="updated" checked
-                        onchange="window.app.updateTableColumns()"> Updated
-                </label>
+            <!-- Card View -->
+            <div id="cardView" class="view-container">
+                <div id="applicationsGrid" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <!-- Dynamically populated -->
+                </div>
             </div>
-        </div>
 
-        <!-- Card View -->
-        <div id="cardView" class="view-container">
-            <div id="applicationsGrid" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <!-- Table View -->
+            <div id="tableView" class="view-container hidden">
+                <div class="table-container bg-gray-800 rounded-xl border border-gray-700">
+                    <table class="w-full text-sm">
+                        <thead id="tableHead" class="bg-gray-900 text-gray-400 text-left">
+                            <!-- Dynamically populated -->
+                        </thead>
+                        <tbody id="tableBody" class="divide-y divide-gray-700">
+                            <!-- Dynamically populated -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Kanban View -->
+            <div id="kanbanView" class="view-container hidden">
+                <div class="kanban-wrapper flex gap-4 overflow-x-auto pb-4" id="kanbanBoard">
+                    <!-- Dynamically populated -->
+                </div>
+            </div>
+
+            <!-- Analytics View -->
+            <div id="analyticsView" class="view-container hidden">
                 <!-- Dynamically populated -->
             </div>
-        </div>
 
-        <!-- Table View -->
-        <div id="tableView" class="view-container hidden">
-            <div class="table-container bg-gray-800 rounded-xl border border-gray-700">
-                <table class="w-full text-sm">
-                    <thead id="tableHead" class="bg-gray-900 text-gray-400 text-left">
-                        <!-- Dynamically populated -->
-                    </thead>
-                    <tbody id="tableBody" class="divide-y divide-gray-700">
-                        <!-- Dynamically populated -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Kanban View -->
-        <div id="kanbanView" class="view-container hidden">
-            <div class="kanban-wrapper flex gap-4 overflow-x-auto pb-4" id="kanbanBoard">
+            <!-- Calendar View -->
+            <div id="calendarView" class="view-container hidden">
                 <!-- Dynamically populated -->
             </div>
-        </div>
 
-        <!-- Analytics View -->
-        <div id="analyticsView" class="view-container hidden">
-            <!-- Dynamically populated -->
-        </div>
-
-        <!-- Calendar View -->
-        <div id="calendarView" class="view-container hidden">
-            <!-- Dynamically populated -->
-        </div>
-
-        <!-- Upcoming Interviews Widget (shown on card/table views) -->
-        <div id="upcomingInterviewsWidget" class="mt-6 hidden">
-            <!-- Dynamically populated -->
-        </div>
-
-        <!-- Empty State -->
-        <div id="emptyState" class="hidden text-center py-16">
-            <i class="fas fa-folder-open text-6xl text-gray-600 mb-4"></i>
-            <h3 class="text-xl font-semibold text-gray-400">No applications found</h3>
-            <p class="text-gray-500 mt-2">Try adjusting your filters or add a new opportunity</p>
-        </div>
-
-        <!-- Results Summary -->
-        <div id="resultsSummary" class="mt-4 text-center text-gray-500 text-sm">
-            <!-- Dynamically populated -->
-        </div>
-    </main>
-
-    <!-- Add/Edit Modal -->
-    <div id="addModal"
-        class="modal fixed inset-0 bg-black/70 z-50 hidden items-center justify-center p-4 overflow-y-auto">
-        <div class="bg-gray-800 rounded-2xl max-w-2xl w-full my-8 shadow-2xl border border-gray-700">
-            <div class="p-6 border-b border-gray-700">
-                <div class="flex justify-between items-center">
-                    <h2 id="modalTitle" class="text-xl font-bold text-white">Add New Opportunity</h2>
-                    <button onclick="window.app.closeAddModal()"
-                        class="text-gray-400 hover:text-white text-2xl">&times;</button>
-                </div>
+            <!-- Upcoming Interviews Widget (shown on card/table views) -->
+            <div id="upcomingInterviewsWidget" class="mt-6 hidden">
+                <!-- Dynamically populated -->
             </div>
-            <form id="applicationForm" class="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-                <input type="hidden" id="appId">
 
-                <div class="grid md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Company Name *</label>
-                        <input type="text" id="companyName" required
-                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Role/Position *</label>
-                        <input type="text" id="role" required
-                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+            <!-- Empty State -->
+            <div id="emptyState" class="hidden text-center py-16">
+                <i class="fas fa-folder-open text-6xl text-gray-600 mb-4"></i>
+                <h3 class="text-xl font-semibold text-gray-400">No applications found</h3>
+                <p class="text-gray-500 mt-2">Try adjusting your filters or add a new opportunity</p>
+            </div>
+
+            <!-- Results Summary -->
+            <div id="resultsSummary" class="mt-4 text-center text-gray-500 text-sm">
+                <!-- Dynamically populated -->
+            </div>
+        </main>
+
+        <!-- Add/Edit Modal -->
+        <div id="addModal"
+            class="modal fixed inset-0 bg-black/70 z-50 hidden items-center justify-center p-4 overflow-y-auto">
+            <div class="bg-gray-800 rounded-2xl max-w-2xl w-full my-8 shadow-2xl border border-gray-700">
+                <div class="p-6 border-b border-gray-700">
+                    <div class="flex justify-between items-center">
+                        <h2 id="modalTitle" class="text-xl font-bold text-white">Add New Opportunity</h2>
+                        <button onclick="window.app.closeAddModal()"
+                            class="text-gray-400 hover:text-white text-2xl">&times;</button>
                     </div>
                 </div>
+                <form id="applicationForm" class="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                    <input type="hidden" id="appId">
 
-                <div class="grid md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">HR/Vendor Name</label>
-                        <input type="text" id="hrName"
-                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-1">Company Name *</label>
+                            <input type="text" id="companyName" required
+                                class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-1">Role/Position *</label>
+                            <input type="text" id="role" required
+                                class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">HR Contact (Phone/Email)</label>
-                        <input type="text" id="hrContact"
-                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-                    </div>
-                </div>
 
-                <div class="grid md:grid-cols-3 gap-4">
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-1">HR/Vendor Name</label>
+                            <input type="text" id="hrName"
+                                class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-1">HR Contact (Phone/Email)</label>
+                            <input type="text" id="hrContact"
+                                class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                        </div>
+                    </div>
+
+                    <div class="grid md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-1">Opportunity Type</label>
+                            <select id="opportunityType"
+                                class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500">
+                                <option value="">Select...</option>
+                                <option value="C2H">C2H (Contract to Hire)</option>
+                                <option value="Payroll">Company Payroll</option>
+                                <option value="Contract">Contract</option>
+                                <option value="Vendor Payroll">Vendor Payroll</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-1">Location</label>
+                            <select id="location"
+                                class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500">
+                                <option value="">Select...</option>
+                                <option value="Remote">Remote</option>
+                                <option value="WFO">Work From Office</option>
+                                <option value="Hybrid">Hybrid</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-1">Location City</label>
+                            <input type="text" id="city"
+                                class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                        </div>
+                    </div>
+
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-1">Expected Salary/Rate</label>
+                            <input type="text" id="salary"
+                                class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                placeholder="e.g., 25 LPA or $80/hr">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-1">Notice Period Discussed</label>
+                            <input type="text" id="noticePeriod"
+                                class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                placeholder="e.g., Immediate, 30 days">
+                        </div>
+                    </div>
+
                     <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Opportunity Type</label>
-                        <select id="opportunityType"
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Key Skills Required</label>
+                        <input type="text" id="keySkills"
+                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                            placeholder="e.g., React, Node.js, AWS">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Job Description / Notes</label>
+                        <textarea id="jdNotes" rows="3"
+                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                            placeholder="Paste JD or add notes..."></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Current Stage</label>
+                        <select id="currentStage"
                             class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500">
-                            <option value="">Select...</option>
-                            <option value="C2H">C2H (Contract to Hire)</option>
-                            <option value="Payroll">Company Payroll</option>
-                            <option value="Contract">Contract</option>
-                            <option value="Vendor Payroll">Vendor Payroll</option>
-                            <option value="Other">Other</option>
+                            <option value="1">Stage 1: Initial Contact from HR/Vendor</option>
+                            <option value="2">Stage 2: Opportunity Discussion & JD Shared</option>
+                            <option value="3">Stage 3: CV Submitted - Following Up</option>
+                            <option value="4">Stage 4: CV Shortlisted for Interview</option>
+                            <option value="5">Stage 5: Interview Scheduled</option>
+                            <option value="6">Stage 6: Interview Given - Awaiting Feedback</option>
+                            <option value="7">Stage 7: Further Rounds in Progress</option>
+                            <option value="8">Stage 8: Final Result</option>
+                            <option value="0">Closed/Discarded</option>
                         </select>
                     </div>
+
                     <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Final Result (if applicable)</label>
+                        <select id="finalResult"
+                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500">
+                            <option value="">In Progress...</option>
+                            <option value="offered">🎉 Offer Received</option>
+                            <option value="accepted">✅ Offer Accepted</option>
+                            <option value="rejected">❌ Rejected by Company</option>
+                            <option value="declined">🚫 Declined by Me</option>
+                            <option value="ghosted">👻 No Response/Ghosted</option>
+                        </select>
+                    </div>
+
+                    <div class="flex gap-3 pt-4">
+                        <button type="submit"
+                            class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-xl font-semibold transition">
+                            <i class="fas fa-save mr-2"></i> Save Application
+                        </button>
+                        <button type="button" onclick="window.app.closeAddModal()"
+                            class="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-xl font-semibold transition">
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Detail View Modal -->
+        <div id="detailModal" class="modal fixed inset-0 bg-black/70 z-50 hidden overflow-y-auto">
+            <div class="min-h-screen flex items-start justify-end">
+                <div id="detailPanel"
+                    class="slide-in bg-gray-800 w-full max-w-2xl min-h-screen shadow-2xl border-l border-gray-700">
+                    <!-- Dynamically populated -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Interaction Modal -->
+        <div id="interactionModal"
+            class="modal fixed inset-0 bg-black/70 z-[60] hidden items-center justify-center p-4">
+            <div class="bg-gray-800 rounded-2xl max-w-lg w-full shadow-2xl border border-gray-700">
+                <div class="p-6 border-b border-gray-700">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-xl font-bold text-white">Log Interaction</h2>
+                        <button onclick="window.app.closeInteractionModal()"
+                            class="text-gray-400 hover:text-white text-2xl">&times;</button>
+                    </div>
+                </div>
+                <form id="interactionForm" class="p-6 space-y-4">
+                    <input type="hidden" id="interactionAppId">
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Interaction Type</label>
+                        <select id="interactionType" required
+                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white">
+                            <option value="call_received">📞 Call Received</option>
+                            <option value="call_made">📱 Call Made</option>
+                            <option value="email_received">📧 Email Received</option>
+                            <option value="email_sent">📤 Email Sent</option>
+                            <option value="interview">🎤 Interview</option>
+                            <option value="followup">🔄 Follow Up</option>
+                            <option value="update">📝 Status Update</option>
+                            <option value="other">📌 Other</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Date & Time</label>
+                        <input type="datetime-local" id="interactionDate" required
+                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Summary / Notes *</label>
+                        <textarea id="interactionNotes" rows="4" required
+                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+                            placeholder="What was discussed? Any action items?"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Update Stage?</label>
+                        <select id="interactionStage"
+                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white">
+                            <option value="">No change</option>
+                            <option value="1">Stage 1: Initial Contact from HR/Vendor</option>
+                            <option value="2">Stage 2: Opportunity Discussion & JD Shared</option>
+                            <option value="3">Stage 3: CV Submitted - Following Up</option>
+                            <option value="4">Stage 4: CV Shortlisted for Interview</option>
+                            <option value="5">Stage 5: Interview Scheduled</option>
+                            <option value="6">Stage 6: Interview Given - Awaiting Feedback</option>
+                            <option value="7">Stage 7: Further Rounds in Progress</option>
+                            <option value="8">Stage 8: Final Result</option>
+                            <option value="0">Closed/Discarded</option>
+                        </select>
+                    </div>
+
+                    <div class="flex gap-3 pt-4">
+                        <button type="submit"
+                            class="flex-1 bg-green-600 hover:bg-green-500 text-white py-3 rounded-xl font-semibold transition">
+                            <i class="fas fa-plus mr-2"></i> Log Interaction
+                        </button>
+                        <button type="button" onclick="window.app.closeInteractionModal()"
+                            class="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-xl font-semibold transition">
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Interview Schedule Modal -->
+        <div id="interviewScheduleModal"
+            class="modal fixed inset-0 bg-black/70 z-[60] hidden items-center justify-center p-4 overflow-y-auto">
+            <div class="bg-gray-800 rounded-2xl max-w-lg w-full my-8 shadow-2xl border border-gray-700">
+                <div class="p-6 border-b border-gray-700">
+                    <div class="flex justify-between items-center">
+                        <h2 id="interviewModalTitle" class="text-xl font-bold text-white">Schedule Interview</h2>
+                        <button onclick="window.app.closeScheduleInterviewModal()"
+                            class="text-gray-400 hover:text-white text-2xl">&times;</button>
+                    </div>
+                </div>
+                <form id="interviewScheduleForm" class="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                    <input type="hidden" id="interviewId">
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Application *</label>
+                        <select id="interviewAppSelect" required
+                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500">
+                            <option value="">Select application...</option>
+                            <!-- Dynamically populated -->
+                        </select>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-1">Interview Type *</label>
+                            <select id="interviewType" required
+                                class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500">
+                                <!-- Dynamically populated from settings -->
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-1">Mode *</label>
+                            <select id="interviewMode" required
+                                class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500">
+                                <!-- Dynamically populated from settings -->
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-1">Date & Time *</label>
+                            <input type="datetime-local" id="interviewDateTime" required
+                                class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-1">Duration (mins)</label>
+                            <select id="interviewDuration"
+                                class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500">
+                                <option value="30">30 minutes</option>
+                                <option value="45">45 minutes</option>
+                                <option value="60" selected>60 minutes</option>
+                                <option value="90">90 minutes</option>
+                                <option value="120">120 minutes</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="meetingLinkField">
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Meeting Link</label>
+                        <input type="url" id="interviewMeetingLink" placeholder="https://meet.google.com/..."
+                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500">
+                    </div>
+
+                    <div id="locationField" class="hidden">
                         <label class="block text-sm font-medium text-gray-300 mb-1">Location</label>
-                        <select id="location"
+                        <input type="text" id="interviewLocation" placeholder="Office address..."
                             class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500">
-                            <option value="">Select...</option>
-                            <option value="Remote">Remote</option>
-                            <option value="WFO">Work From Office</option>
-                            <option value="Hybrid">Hybrid</option>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Interviewer Name</label>
+                        <input type="text" id="interviewerName" placeholder="John Doe"
+                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Reminder</label>
+                        <select id="interviewReminder"
+                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500">
+                            <option value="15">15 minutes before</option>
+                            <option value="30" selected>30 minutes before</option>
                         </select>
                     </div>
+
                     <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Location City</label>
-                        <input type="text" id="city"
-                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Notes / Preparation</label>
+                        <textarea id="interviewNotes" rows="3" placeholder="Topics to prepare, questions to ask..."
+                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500"></textarea>
                     </div>
-                </div>
 
-                <div class="grid md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Expected Salary/Rate</label>
-                        <input type="text" id="salary"
-                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                            placeholder="e.g., 25 LPA or $80/hr">
+                    <div class="flex gap-3 pt-4">
+                        <button type="submit"
+                            class="flex-1 bg-green-600 hover:bg-green-500 text-white py-3 rounded-xl font-semibold transition">
+                            <i class="fas fa-calendar-check mr-2"></i> Schedule Interview
+                        </button>
+                        <button type="button" onclick="window.app.closeScheduleInterviewModal()"
+                            class="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-xl font-semibold transition">
+                            Cancel
+                        </button>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Notice Period Discussed</label>
-                        <input type="text" id="noticePeriod"
-                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                            placeholder="e.g., Immediate, 30 days">
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Key Skills Required</label>
-                    <input type="text" id="keySkills"
-                        class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                        placeholder="e.g., React, Node.js, AWS">
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Job Description / Notes</label>
-                    <textarea id="jdNotes" rows="3"
-                        class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                        placeholder="Paste JD or add notes..."></textarea>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Current Stage</label>
-                    <select id="currentStage"
-                        class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500">
-                        <option value="1">Stage 1: Initial Contact from HR/Vendor</option>
-                        <option value="2">Stage 2: Opportunity Discussion & JD Shared</option>
-                        <option value="3">Stage 3: CV Submitted - Following Up</option>
-                        <option value="4">Stage 4: CV Shortlisted for Interview</option>
-                        <option value="5">Stage 5: Interview Scheduled</option>
-                        <option value="6">Stage 6: Interview Given - Awaiting Feedback</option>
-                        <option value="7">Stage 7: Further Rounds in Progress</option>
-                        <option value="8">Stage 8: Final Result</option>
-                        <option value="0">Closed/Discarded</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Final Result (if applicable)</label>
-                    <select id="finalResult"
-                        class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500">
-                        <option value="">In Progress...</option>
-                        <option value="offered">🎉 Offer Received</option>
-                        <option value="accepted">✅ Offer Accepted</option>
-                        <option value="rejected">❌ Rejected by Company</option>
-                        <option value="declined">🚫 Declined by Me</option>
-                        <option value="ghosted">👻 No Response/Ghosted</option>
-                    </select>
-                </div>
-
-                <div class="flex gap-3 pt-4">
-                    <button type="submit"
-                        class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-xl font-semibold transition">
-                        <i class="fas fa-save mr-2"></i> Save Application
-                    </button>
-                    <button type="button" onclick="window.app.closeAddModal()"
-                        class="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-xl font-semibold transition">
-                        Cancel
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Detail View Modal -->
-    <div id="detailModal" class="modal fixed inset-0 bg-black/70 z-50 hidden overflow-y-auto">
-        <div class="min-h-screen flex items-start justify-end">
-            <div id="detailPanel"
-                class="slide-in bg-gray-800 w-full max-w-2xl min-h-screen shadow-2xl border-l border-gray-700">
-                <!-- Dynamically populated -->
+                </form>
             </div>
         </div>
-    </div>
 
-    <!-- Add Interaction Modal -->
-    <div id="interactionModal" class="modal fixed inset-0 bg-black/70 z-[60] hidden items-center justify-center p-4">
-        <div class="bg-gray-800 rounded-2xl max-w-lg w-full shadow-2xl border border-gray-700">
-            <div class="p-6 border-b border-gray-700">
-                <div class="flex justify-between items-center">
-                    <h2 class="text-xl font-bold text-white">Log Interaction</h2>
-                    <button onclick="window.app.closeInteractionModal()"
-                        class="text-gray-400 hover:text-white text-2xl">&times;</button>
+        <!-- Interview Detail Panel (slide-in) -->
+        <div id="interviewDetailModal" class="modal fixed inset-0 bg-black/70 z-50 hidden overflow-y-auto">
+            <div class="min-h-screen flex items-start justify-end">
+                <div id="interviewDetailPanel"
+                    class="slide-in bg-gray-800 w-full max-w-lg min-h-screen shadow-2xl border-l border-gray-700">
+                    <!-- Dynamically populated -->
                 </div>
             </div>
-            <form id="interactionForm" class="p-6 space-y-4">
-                <input type="hidden" id="interactionAppId">
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Interaction Type</label>
-                    <select id="interactionType" required
-                        class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white">
-                        <option value="call_received">📞 Call Received</option>
-                        <option value="call_made">📱 Call Made</option>
-                        <option value="email_received">📧 Email Received</option>
-                        <option value="email_sent">📤 Email Sent</option>
-                        <option value="interview">🎤 Interview</option>
-                        <option value="followup">🔄 Follow Up</option>
-                        <option value="update">📝 Status Update</option>
-                        <option value="other">📌 Other</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Date & Time</label>
-                    <input type="datetime-local" id="interactionDate" required
-                        class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white">
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Summary / Notes *</label>
-                    <textarea id="interactionNotes" rows="4" required
-                        class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
-                        placeholder="What was discussed? Any action items?"></textarea>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Update Stage?</label>
-                    <select id="interactionStage"
-                        class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white">
-                        <option value="">No change</option>
-                        <option value="1">Stage 1: Initial Contact from HR/Vendor</option>
-                        <option value="2">Stage 2: Opportunity Discussion & JD Shared</option>
-                        <option value="3">Stage 3: CV Submitted - Following Up</option>
-                        <option value="4">Stage 4: CV Shortlisted for Interview</option>
-                        <option value="5">Stage 5: Interview Scheduled</option>
-                        <option value="6">Stage 6: Interview Given - Awaiting Feedback</option>
-                        <option value="7">Stage 7: Further Rounds in Progress</option>
-                        <option value="8">Stage 8: Final Result</option>
-                        <option value="0">Closed/Discarded</option>
-                    </select>
-                </div>
-
-                <div class="flex gap-3 pt-4">
-                    <button type="submit"
-                        class="flex-1 bg-green-600 hover:bg-green-500 text-white py-3 rounded-xl font-semibold transition">
-                        <i class="fas fa-plus mr-2"></i> Log Interaction
-                    </button>
-                    <button type="button" onclick="window.app.closeInteractionModal()"
-                        class="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-xl font-semibold transition">
-                        Cancel
-                    </button>
-                </div>
-            </form>
         </div>
-    </div>
 
-    <!-- Interview Schedule Modal -->
-    <div id="interviewScheduleModal"
-        class="modal fixed inset-0 bg-black/70 z-[60] hidden items-center justify-center p-4 overflow-y-auto">
-        <div class="bg-gray-800 rounded-2xl max-w-lg w-full my-8 shadow-2xl border border-gray-700">
-            <div class="p-6 border-b border-gray-700">
-                <div class="flex justify-between items-center">
-                    <h2 id="interviewModalTitle" class="text-xl font-bold text-white">Schedule Interview</h2>
-                    <button onclick="window.app.closeScheduleInterviewModal()"
-                        class="text-gray-400 hover:text-white text-2xl">&times;</button>
-                </div>
-            </div>
-            <form id="interviewScheduleForm" class="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-                <input type="hidden" id="interviewId">
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Application *</label>
-                    <select id="interviewAppSelect" required
-                        class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500">
-                        <option value="">Select application...</option>
-                        <!-- Dynamically populated -->
-                    </select>
-                </div>
-
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Interview Type *</label>
-                        <select id="interviewType" required
-                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500">
-                            <!-- Dynamically populated from settings -->
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Mode *</label>
-                        <select id="interviewMode" required
-                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500">
-                            <!-- Dynamically populated from settings -->
-                        </select>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Date & Time *</label>
-                        <input type="datetime-local" id="interviewDateTime" required
-                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Duration (mins)</label>
-                        <select id="interviewDuration"
-                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500">
-                            <option value="30">30 minutes</option>
-                            <option value="45">45 minutes</option>
-                            <option value="60" selected>60 minutes</option>
-                            <option value="90">90 minutes</option>
-                            <option value="120">120 minutes</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div id="meetingLinkField">
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Meeting Link</label>
-                    <input type="url" id="interviewMeetingLink" placeholder="https://meet.google.com/..."
-                        class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500">
-                </div>
-
-                <div id="locationField" class="hidden">
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Location</label>
-                    <input type="text" id="interviewLocation" placeholder="Office address..."
-                        class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500">
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Interviewer Name</label>
-                    <input type="text" id="interviewerName" placeholder="John Doe"
-                        class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500">
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Reminder</label>
-                    <select id="interviewReminder"
-                        class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500">
-                        <option value="15">15 minutes before</option>
-                        <option value="30" selected>30 minutes before</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Notes / Preparation</label>
-                    <textarea id="interviewNotes" rows="3" placeholder="Topics to prepare, questions to ask..."
-                        class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500"></textarea>
-                </div>
-
-                <div class="flex gap-3 pt-4">
-                    <button type="submit"
-                        class="flex-1 bg-green-600 hover:bg-green-500 text-white py-3 rounded-xl font-semibold transition">
-                        <i class="fas fa-calendar-check mr-2"></i> Schedule Interview
-                    </button>
-                    <button type="button" onclick="window.app.closeScheduleInterviewModal()"
-                        class="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-xl font-semibold transition">
-                        Cancel
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Interview Detail Panel (slide-in) -->
-    <div id="interviewDetailModal" class="modal fixed inset-0 bg-black/70 z-50 hidden overflow-y-auto">
-        <div class="min-h-screen flex items-start justify-end">
-            <div id="interviewDetailPanel"
-                class="slide-in bg-gray-800 w-full max-w-lg min-h-screen shadow-2xl border-l border-gray-700">
-                <!-- Dynamically populated -->
-            </div>
-        </div>
-    </div>
+    </div> <!-- End appContainer -->
 
     <!-- Vite Entry Point -->
     <script type="module" src="/src/main.js"></script>

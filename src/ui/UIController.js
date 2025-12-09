@@ -934,7 +934,7 @@ export class UIController {
     /**
      * Handle interview schedule form submit
      */
-    handleInterviewScheduleSubmit() {
+    async handleInterviewScheduleSubmit() {
         const interviewId = document.getElementById('interviewId').value;
         const appId = document.getElementById('interviewAppSelect').value;
 
@@ -952,9 +952,9 @@ export class UIController {
 
         let result;
         if (interviewId) {
-            result = this.engine.updateInterview(interviewId, data);
+            result = await this.engine.updateInterview(interviewId, data);
         } else {
-            result = this.engine.scheduleInterview(appId, data);
+            result = await this.engine.scheduleInterview(appId, data);
         }
 
         if (result.success) {
@@ -1019,10 +1019,10 @@ export class UIController {
     /**
      * Delete interview with confirmation
      */
-    deleteInterviewConfirm(interviewId) {
+    async deleteInterviewConfirm(interviewId) {
         if (!confirm('Delete this interview?')) return;
 
-        this.engine.deleteInterview(interviewId);
+        await this.engine.deleteInterview(interviewId);
         this.closeInterviewDetail();
         this.render();
     }

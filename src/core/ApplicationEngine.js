@@ -1,6 +1,6 @@
 import { Application } from './models/Application.js';
 import { Interaction } from './models/Interaction.js';
-import { StorageService } from './services/StorageService.js';
+import { getStorageService } from './services/StorageServiceAdapter.js';
 import { FilterService } from './services/FilterService.js';
 import { SortService } from './services/SortService.js';
 import { AnalyticsService } from './services/AnalyticsService.js';
@@ -28,7 +28,6 @@ export class ApplicationEngine {
         this.listeners = new Set();
 
         // Services
-        this.storage = new StorageService();
         this.filterService = new FilterService();
         this.sortService = new SortService();
         this.analyticsService = new AnalyticsService();
@@ -55,10 +54,36 @@ export class ApplicationEngine {
     // ═══════════════════════════════════════════════════════════════
 
     /**
-     * Initialize the engine - load data from storage
+     * Get the current storage service (dynamically checks auth state)
+     * @returns {import('./services/StorageService.js').StorageService | import('./services/FirebaseStorageService.js').FirebaseStorageService}
+     */
+    getStorage() {
+        return getStorageService();
+    }
+
+    /**
+     * Initialize the engine - load data from storage and set up real-time sync
      */
     init() {
-        this.applications = this.storage.load();
+        const storage = this.getStorage();
+        this.applications = storage.load();
+
+        // Subscribe to real-time changes if storage supports it (Firebase)
+        if (typeof storage.subscribe === 'function') {
+            storage.subscribe((applications) => {
+                this.applications = applications;
+                this.notify();
+            });
+        }
+
+        this.notify();
+    }
+
+    /**
+     * Reload data from storage (useful after auth changes)
+     */
+    reloadFromStorage() {
+        this.applications = this.getStorage().load();
         this.notify();
     }
 
@@ -400,16 +425,16 @@ export class ApplicationEngine {
      * Automatically moves the application to Stage 5 (Interview Set) if currently at Stage 4 or below
      * @param {string} appId
      * @param {Partial<import('./models/Interview.js').InterviewData>} interviewData
-     * @returns {{success: boolean, data?: import('./models/Interview.js').InterviewData, errors?: string[]}}
+     * @returns {Promise<{success: boolean, data?: import('./models/Interview.js').InterviewData, errors?: string[]}>}
      */
-    scheduleInterview(appId, interviewData) {
+    async scheduleInterview(appId, interviewData) {
         const app = this.getById(appId);
         if (!app) {
             return { success: false, errors: ['Application not found'] };
         }
 
         const interviewService = getInterviewService();
-        const result = interviewService.create({
+        const result = await interviewService.create({
             ...interviewData,
             applicationId: appId
         });
@@ -467,21 +492,21 @@ export class ApplicationEngine {
      * Update an interview
      * @param {string} interviewId
      * @param {Partial<import('./models/Interview.js').InterviewData>} data
-     * @returns {{success: boolean, data?: import('./models/Interview.js').InterviewData, errors?: string[]}}
+     * @returns {Promise<{success: boolean, data?: import('./models/Interview.js').InterviewData, errors?: string[]}>}
      */
-    updateInterview(interviewId, data) {
+    async updateInterview(interviewId, data) {
         const interviewService = getInterviewService();
-        return interviewService.update(interviewId, data);
+        return await interviewService.update(interviewId, data);
     }
 
     /**
      * Delete an interview
      * @param {string} interviewId
-     * @returns {boolean}
+     * @returns {Promise<boolean>}
      */
-    deleteInterview(interviewId) {
+    async deleteInterview(interviewId) {
         const interviewService = getInterviewService();
-        return interviewService.delete(interviewId);
+        return await interviewService.delete(interviewId);
     }
 
     /**
@@ -509,7 +534,15 @@ export class ApplicationEngine {
      * @private
      */
     save() {
-        this.storage.save(this.applications);
+        const storage = this.getStorage();
+        // Handle async save for Firebase
+        if (storage.saveOne) {
+            // Firebase - save is async, use batch update
+            storage.save(this.applications);
+        } else {
+            // LocalStorage - synchronous save
+            storage.save(this.applications);
+        }
     }
 }
 
@@ -525,4 +558,11 @@ export function getEngine() {
         engineInstance = new ApplicationEngine();
     }
     return engineInstance;
+}
+
+/**
+ * Reset the engine instance (call after auth changes)
+ */
+export function resetEngine() {
+    engineInstance = null;
 }

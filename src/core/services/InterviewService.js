@@ -261,18 +261,31 @@ class InterviewService {
     }
 }
 
-// Singleton instance
-let serviceInstance = null;
+// Import Firebase services for runtime switching
+import { getAuthService } from './AuthService.js';
+import { getFirebaseInterviewService } from './FirebaseInterviewService.js';
+
+// Singleton instance for local storage version
+let localServiceInstance = null;
 
 /**
- * Get or create the InterviewService instance
- * @returns {InterviewService}
+ * Get the appropriate interview service based on auth state
+ * Returns FirebaseInterviewService when user is authenticated, otherwise local InterviewService
+ * @returns {InterviewService | import('./FirebaseInterviewService.js').FirebaseInterviewService}
  */
 export function getInterviewService() {
-    if (!serviceInstance) {
-        serviceInstance = new InterviewService();
+    try {
+        if (getAuthService().isAuthenticated()) {
+            return getFirebaseInterviewService();
+        }
+    } catch (e) {
+        // Firebase not available, use local storage
     }
-    return serviceInstance;
+
+    if (!localServiceInstance) {
+        localServiceInstance = new InterviewService();
+    }
+    return localServiceInstance;
 }
 
 export { InterviewService };
