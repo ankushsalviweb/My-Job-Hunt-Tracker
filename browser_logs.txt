@@ -1,0 +1,10 @@
+[BROWSER] [vite] connecting...
+[BROWSER] [vite] connected.
+[BROWSER] [2026-02-14T17:44:35.369Z]  @firebase/firestore: Firestore (12.6.0): enableIndexedDbPersistence() will be deprecated in the future, you can use `FirestoreSettings.cache` instead.
+[BROWSER] Failed to load resource: the server responded with a status of 404 (Not Found)
+[BROWSER] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o
+[BROWSER] [Init] Initializing storage adapter...
+[BROWSER] [Init] Storage adapter initialized
+[BROWSER] [Init] UI initialized, applications: 41
+[BROWSER] [DEBUG] Form submit triggered
+[BROWSER] [DEBUG] Form submit triggered

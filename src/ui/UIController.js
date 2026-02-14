@@ -3,9 +3,12 @@ import { getAuthService } from '../core/services/AuthService.js';
 import { STAGES, STAGE_ORDER } from '../core/constants/stages.js';
 import { RESULT_LABELS, RESULT_KEYS } from '../core/constants/results.js';
 import { INTERACTION_TYPES } from '../core/constants/interactions.js';
+import { getSkillSuggestions, COMMON_SKILLS } from '../core/constants/skills-constants.js';
+import { Application } from '../core/models/Application.js';
 import { getInterviewService } from '../core/services/InterviewService.js';
 import { getNotificationService } from '../core/services/NotificationService.js';
 import { getSettingsService } from '../core/services/SettingsService.js';
+import { getFollowUpService } from '../core/services/FollowUpService.js';
 import { downloadICS } from '../core/utils/icsExport.js';
 import { toLocalDateTimeString } from '../core/utils/dateUtils.js';
 import {
@@ -41,6 +44,10 @@ export class UIController {
         this.calendarView = 'month'; // 'month' | 'week' | 'day'
         this.calendarDate = new Date();
 
+        // Skill tags state for form
+        this.currentSkillTags = [];
+        this.selectedApps = new Set(); // For table multi-select
+
         // Bind methods
         this.render = this.render.bind(this);
 
@@ -58,6 +65,11 @@ export class UIController {
         this.setupNotifications();
         this.updateUserDisplay();
         this.render();
+
+        // Start periodic follow-up check (every 5 minutes)
+        this.followUpCheckInterval = setInterval(() => {
+            this.renderFollowUpBanner();
+        }, 5 * 60 * 1000);
     }
 
     /**
@@ -114,6 +126,9 @@ export class UIController {
                 this.closeInteractionModal();
                 this.closeScheduleInterviewModal();
                 this.closeInterviewDetail();
+                this.closeCloseAppModal();
+                this.closeRoundOutcomeModal();
+                this.closeSettingsModal();
             }
         });
 
@@ -135,6 +150,7 @@ export class UIController {
 
         // Application form submit
         document.getElementById('applicationForm')?.addEventListener('submit', (e) => {
+            console.log('[DEBUG] Form submit triggered');
             e.preventDefault();
             this.handleApplicationSubmit();
         });
@@ -161,6 +177,12 @@ export class UIController {
             const isOnsite = e.target.value === 'onsite';
             document.getElementById('meetingLinkField')?.classList.toggle('hidden', isOnsite);
             document.getElementById('locationField')?.classList.toggle('hidden', !isOnsite);
+        });
+
+        // Close application form submit
+        document.getElementById('closeAppForm')?.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleCloseAppSubmit();
         });
     }
 
@@ -259,6 +281,7 @@ export class UIController {
         this.renderStageCounts();
         this.renderCurrentView();
         this.updateActiveFiltersBar();
+        this.renderFollowUpBanner();
     }
 
     /**
@@ -354,11 +377,26 @@ export class UIController {
     renderTableView(applications, isEmpty) {
         const thead = document.getElementById('tableHead');
         const tbody = document.getElementById('tableBody');
+        const bulkActionsDiv = document.getElementById('tableBulkActions');
 
         if (thead && tbody) {
-            const { header, body } = renderTableView(applications, this.visibleColumns, this.engine.currentSort);
+            const { header, body, bulkActions } = renderTableView(
+                applications,
+                this.visibleColumns,
+                this.engine.currentSort,
+                this.selectedApps
+            );
             thead.innerHTML = header;
             tbody.innerHTML = isEmpty ? '' : body;
+
+            if (bulkActionsDiv) {
+                bulkActionsDiv.innerHTML = bulkActions || '';
+                if (bulkActions) {
+                    bulkActionsDiv.classList.remove('hidden');
+                } else {
+                    bulkActionsDiv.classList.add('hidden');
+                }
+            }
         }
     }
 
@@ -641,6 +679,16 @@ export class UIController {
         document.getElementById('appId').value = '';
         title.textContent = 'Add New Opportunity';
 
+        // Reset skill tags
+        this.currentSkillTags = [];
+        this.renderSkillTags();
+
+        // Reset vendor toggle to Direct HR
+        this.toggleContactSource(false);
+
+        // Setup skill input handlers
+        this.setupSkillTagInput();
+
         modal?.classList.remove('hidden');
         modal?.classList.add('flex');
     }
@@ -659,17 +707,31 @@ export class UIController {
         document.getElementById('appId').value = app.id;
         document.getElementById('companyName').value = app.companyName || '';
         document.getElementById('role').value = app.role || '';
-        document.getElementById('hrName').value = app.hrName || '';
-        document.getElementById('hrContact').value = app.hrContact || '';
+
+        // Contact source fields
+        const isVendor = app.isVendor || false;
+        this.toggleContactSource(isVendor);
+        document.getElementById('vendorCompanyName').value = app.vendorCompanyName || '';
+        document.getElementById('contactPersonName').value = app.contactPersonName || '';
+        document.getElementById('contactPhone').value = app.contactPhone || '';
+        document.getElementById('contactEmail').value = app.contactEmail || '';
+
         document.getElementById('opportunityType').value = app.opportunityType || '';
         document.getElementById('location').value = app.location || '';
         document.getElementById('city').value = app.city || '';
-        document.getElementById('salary').value = app.salary || '';
+
+        document.getElementById('expectedSalary').value = app.expectedSalary || '';
         document.getElementById('noticePeriod').value = app.noticePeriod || '';
-        document.getElementById('keySkills').value = app.keySkills || '';
-        document.getElementById('jdNotes').value = app.jdNotes || '';
+
+        // Skill tags
+        this.currentSkillTags = Array.isArray(app.skillTags) ? [...app.skillTags] : [];
+        this.renderSkillTags();
+        this.setupSkillTagInput();
+
+        // Job description
+        document.getElementById('jobDescription').value = app.jobDescription || '';
+
         document.getElementById('currentStage').value = app.currentStage;
-        document.getElementById('finalResult').value = app.finalResult || '';
 
         modal?.classList.remove('hidden');
         modal?.classList.add('flex');
@@ -689,27 +751,60 @@ export class UIController {
      */
     handleApplicationSubmit() {
         const appId = document.getElementById('appId').value;
+
+        // NEW: Collect data from redesigned form
+        const isVendor = document.getElementById('isVendor').value === 'true';
+        const expectedSalaryStr = document.getElementById('expectedSalary').value;
+        const expectedSalary = expectedSalaryStr ? parseInt(expectedSalaryStr, 10) : null;
+
         const data = {
             companyName: document.getElementById('companyName').value,
             role: document.getElementById('role').value,
-            hrName: document.getElementById('hrName').value,
-            hrContact: document.getElementById('hrContact').value,
+
+            // Contact source fields
+            isVendor: isVendor,
+            vendorCompanyName: isVendor ? document.getElementById('vendorCompanyName').value : '',
+            contactPersonName: document.getElementById('contactPersonName').value,
+            contactPhone: document.getElementById('contactPhone').value,
+            contactEmail: document.getElementById('contactEmail').value,
+
+            // Opportunity details
             opportunityType: document.getElementById('opportunityType').value,
             location: document.getElementById('location').value,
             city: document.getElementById('city').value,
-            salary: document.getElementById('salary').value,
+            expectedSalary: expectedSalary,
             noticePeriod: document.getElementById('noticePeriod').value,
-            keySkills: document.getElementById('keySkills').value,
-            jdNotes: document.getElementById('jdNotes').value,
-            currentStage: parseInt(document.getElementById('currentStage').value),
-            finalResult: document.getElementById('finalResult').value
+
+            // Skills & Description
+            skillTags: [...this.currentSkillTags],
+            jobDescription: document.getElementById('jobDescription').value
         };
+
+        const newStage = parseInt(document.getElementById('currentStage').value);
 
         let result;
         if (appId) {
+            // For updates, handle stage separately to trigger actions
+            const app = this.engine.getById(appId);
+            const oldStage = app ? app.currentStage : null;
+
+            // Update basic fields
             result = this.engine.update(appId, data);
+
+            // If stage changed, trigger move
+            if (result.success && oldStage !== newStage) {
+                this.moveToStage(appId, newStage);
+            }
         } else {
+            // For create, include stage
+            data.currentStage = newStage;
             result = this.engine.create(data);
+
+            // If created in a stage that requires action (e.g. Interviewing), trigger it?
+            // Maybe optional for now to keep it simple.
+            if (result.success && newStage === 5) {
+                this.handleStageAction(result.data.id, 'schedule_interview');
+            }
         }
 
         if (result.success) {
@@ -732,14 +827,17 @@ export class UIController {
         const app = this.engine.getById(appId);
         if (!app) return;
 
+        const interviews = this.engine.getInterviewsForApplication(appId);
+
         const modal = document.getElementById('detailModal');
         const panel = document.getElementById('detailPanel');
 
         if (panel) {
-            panel.innerHTML = renderDetailPanel(app);
+            panel.innerHTML = renderDetailPanel(app, interviews);
         }
 
         modal?.classList.remove('hidden');
+        modal?.classList.add('flex');
     }
 
     /**
@@ -774,7 +872,7 @@ export class UIController {
     /**
      * Handle interaction form submit
      */
-    handleInteractionSubmit() {
+    async handleInteractionSubmit() {
         const appId = document.getElementById('interactionAppId').value;
         const data = {
             type: document.getElementById('interactionType').value,
@@ -783,13 +881,48 @@ export class UIController {
         };
 
         const newStage = document.getElementById('interactionStage').value;
-        const result = this.engine.addInteraction(appId, data, newStage ? parseInt(newStage) : undefined);
+        const result = await this.engine.addInteraction(appId, data, newStage ? parseInt(newStage) : undefined);
 
         if (result.success) {
             this.closeInteractionModal();
             this.openDetail(appId);
         } else {
             alert(result.errors.join('\n'));
+        }
+    }
+
+    /**
+     * Move application to stage
+     */
+    async moveToStage(appId, stage) {
+        const result = await this.engine.moveToStage(appId, stage);
+        if (result.success) {
+            this.render();
+            if (result.action) {
+                this.handleStageAction(appId, result.action);
+            }
+        }
+    }
+
+    /**
+     * Handle actions triggered by stage transitions
+     */
+    handleStageAction(appId, action) {
+        switch (action) {
+            case 'prompt_details':
+                // Already in edit modal or just open it?
+                // Usually we open edit modal for details
+                this.openEditModal(appId);
+                break;
+            case 'schedule_interview':
+                this.openScheduleInterviewModal(appId);
+                break;
+            case 'prompt_result':
+                this.openResultModal(appId);
+                break;
+            case 'prompt_close_reason':
+                this.openCloseAppModal(appId);
+                break;
         }
     }
 
@@ -808,10 +941,10 @@ export class UIController {
     /**
      * Delete interaction
      */
-    deleteInteraction(appId, interactionId) {
+    async deleteInteraction(appId, interactionId) {
         if (!confirm('Delete this interaction?')) return;
 
-        this.engine.removeInteraction(appId, interactionId);
+        await this.engine.removeInteraction(appId, interactionId);
         this.openDetail(appId);
     }
 
@@ -907,7 +1040,7 @@ export class UIController {
         const select = document.getElementById('interviewAppSelect');
         if (!select) return;
 
-        const apps = this.engine.getAll().filter(a => a.currentStage > 0 && a.currentStage <= 7);
+        const apps = this.engine.getAll().filter(a => a.currentStage > 0 && a.currentStage <= 6);
         select.innerHTML = `<option value="">Select application...</option>` +
             apps.map(a => `<option value="${a.id}" ${a.id === preselectedId ? 'selected' : ''}>${a.companyName} - ${a.role}</option>`).join('');
     }
@@ -1058,5 +1191,568 @@ export class UIController {
         const modes = this.engine.getInterviewModes();
 
         downloadICS(interview, application, types, modes);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // SKILL TAG HANDLERS
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Setup skill tag input event handlers
+     */
+    setupSkillTagInput() {
+        const input = document.getElementById('skillInput');
+        const suggestionsDiv = document.getElementById('skillSuggestions');
+
+        if (!input) return;
+
+        // Remove old listeners by cloning
+        const newInput = input.cloneNode(true);
+        input.parentNode.replaceChild(newInput, input);
+
+        // Add skill on Enter or comma
+        newInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ',') {
+                e.preventDefault();
+                const value = newInput.value.trim().replace(/,/g, '');
+                if (value && !this.currentSkillTags.includes(value)) {
+                    this.addSkillTag(value);
+                }
+                newInput.value = '';
+                suggestionsDiv?.classList.add('hidden');
+            }
+        });
+
+        // Show autocomplete suggestions
+        newInput.addEventListener('input', (e) => {
+            const value = e.target.value.trim();
+            if (value.length < 1) {
+                suggestionsDiv?.classList.add('hidden');
+                return;
+            }
+
+            const suggestions = getSkillSuggestions(value, this.currentSkillTags, []);
+            if (suggestions.length > 0) {
+                suggestionsDiv.innerHTML = suggestions.map(s =>
+                    `<div class="skill-suggestion text-gray-300" onclick="window.app.addSkillTagFromSuggestion('${s}')">${s}</div>`
+                ).join('');
+                suggestionsDiv?.classList.remove('hidden');
+            } else {
+                suggestionsDiv?.classList.add('hidden');
+            }
+        });
+
+        // Hide suggestions on blur (with delay for click)
+        newInput.addEventListener('blur', () => {
+            setTimeout(() => suggestionsDiv?.classList.add('hidden'), 200);
+        });
+    }
+
+    /**
+     * Render skill tags in the container
+     */
+    renderSkillTags() {
+        const container = document.getElementById('skillTagsContainer');
+        const input = document.getElementById('skillInput');
+        const dataField = document.getElementById('skillTagsData');
+
+        if (!container) return;
+
+        // Clear existing tags (keep input)
+        const tags = container.querySelectorAll('.skill-tag');
+        tags.forEach(t => t.remove());
+
+        // Add new tags before input
+        this.currentSkillTags.forEach(skill => {
+            const tag = document.createElement('span');
+            tag.className = 'skill-tag';
+            tag.innerHTML = `${skill} <span class="remove-tag" onclick="window.app.removeSkillTag('${skill}')">&times;</span>`;
+            container.insertBefore(tag, input);
+        });
+
+        // Update hidden field
+        if (dataField) {
+            dataField.value = JSON.stringify(this.currentSkillTags);
+        }
+    }
+
+    /**
+     * Add a skill tag
+     */
+    addSkillTag(skill) {
+        if (!this.currentSkillTags.includes(skill)) {
+            this.currentSkillTags.push(skill);
+            this.renderSkillTags();
+        }
+    }
+
+    /**
+     * Add skill tag from suggestion click
+     */
+    addSkillTagFromSuggestion(skill) {
+        this.addSkillTag(skill);
+        const input = document.getElementById('skillInput');
+        if (input) {
+            input.value = '';
+            input.focus();
+        }
+    }
+
+    /**
+     * Remove a skill tag
+     */
+    removeSkillTag(skill) {
+        this.currentSkillTags = this.currentSkillTags.filter(s => s !== skill);
+        this.renderSkillTags();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // VENDOR TOGGLE HANDLER
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Toggle contact source between Direct HR and Via Vendor
+     */
+    toggleContactSource(isVendor) {
+        const btnDirect = document.getElementById('btnDirectHR');
+        const btnVendor = document.getElementById('btnViaVendor');
+        const vendorField = document.getElementById('vendorField');
+        const hiddenField = document.getElementById('isVendor');
+        const label = document.getElementById('contactPersonLabel');
+
+        // Update button states
+        if (isVendor) {
+            btnDirect?.classList.remove('active');
+            btnDirect?.classList.add('text-gray-400');
+            btnVendor?.classList.add('active');
+            btnVendor?.classList.remove('text-gray-400');
+            vendorField?.classList.remove('hidden');
+            if (label) label.textContent = 'Contact Person Name';
+        } else {
+            btnDirect?.classList.add('active');
+            btnDirect?.classList.remove('text-gray-400');
+            btnVendor?.classList.remove('active');
+            btnVendor?.classList.add('text-gray-400');
+            vendorField?.classList.add('hidden');
+            if (label) label.textContent = 'HR Name';
+        }
+
+        // Update hidden field
+        if (hiddenField) {
+            hiddenField.value = isVendor ? 'true' : 'false';
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // FOLLOW-UP BANNER & GHOSTING HANDLERS
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Render follow-up nudge banner in dashboard
+     */
+    renderFollowUpBanner() {
+        const banner = document.getElementById('followUpBanner');
+        const content = document.getElementById('followUpBannerContent');
+        if (!banner || !content) return;
+
+        const followUpService = getFollowUpService();
+        const applications = this.engine.getAll();
+        const reminders = followUpService.checkReminders(applications);
+
+        if (reminders.length === 0) {
+            banner.classList.add('hidden');
+            return;
+        }
+
+        // Split into regular nudges and ghost candidates
+        const ghostCandidates = reminders.filter(r => r.isGhostCandidate);
+        const regularNudges = reminders.filter(r => !r.isGhostCandidate);
+
+        let html = `<div class="flex items-center gap-2 mb-3">
+            <i class="fas fa-bell text-amber-400"></i>
+            <h3 class="font-semibold text-amber-300">Follow-up Reminders (${reminders.length})</h3>
+        </div>`;
+
+        // Ghost candidates first (in red)
+        if (ghostCandidates.length > 0) {
+            html += `<div class="space-y-2 mb-3">`;
+            ghostCandidates.forEach(r => {
+                html += `
+                <div class="flex items-center justify-between bg-red-900/40 border border-red-600/40 rounded-lg p-3">
+                    <div class="flex-1">
+                        <span class="text-red-300 font-medium">${r.companyName}</span>
+                        <span class="text-red-400 text-sm ml-2">${r.role || ''}</span>
+                        <p class="text-red-400 text-xs mt-1">
+                            <i class="fas fa-ghost mr-1"></i> ${r.attempts} follow-ups sent, no response — possible ghosting
+                        </p>
+                    </div>
+                    <div class="flex gap-2 ml-3 flex-shrink-0">
+                        <button onclick="window.app.markAsGhosted('${r.appId}')"
+                            class="bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded text-xs font-medium transition">
+                            Close as Ghosted
+                        </button>
+                        <button onclick="window.app.dismissFollowUpNudge('${r.appId}')"
+                            class="text-gray-400 hover:text-white text-xs transition">
+                            Dismiss
+                        </button>
+                    </div>
+                </div>`;
+            });
+            html += `</div>`;
+        }
+
+        // Regular nudges
+        if (regularNudges.length > 0) {
+            html += `<div class="space-y-2">`;
+            regularNudges.forEach(r => {
+                const daysText = r.daysSinceReminder === 0 ? 'Today' :
+                    r.daysSinceReminder === 1 ? '1 day overdue' :
+                        `${r.daysSinceReminder} days overdue`;
+                html += `
+                <div class="flex items-center justify-between bg-amber-900/30 rounded-lg p-3">
+                    <div class="flex-1">
+                        <span class="text-amber-300 font-medium">${r.companyName}</span>
+                        <span class="text-amber-400 text-sm ml-2">${r.role || ''}</span>
+                        <p class="text-amber-400/70 text-xs mt-1">
+                            Waiting for: ${r.context || 'response'} • ${daysText}
+                            ${r.attempts > 0 ? ` • ${r.attempts} follow-up(s) sent` : ''}
+                        </p>
+                    </div>
+                    <div class="flex gap-2 ml-3 flex-shrink-0">
+                        <button onclick="window.app.openInteractionModal('${r.appId}')"
+                            class="bg-amber-600 hover:bg-amber-500 text-white px-3 py-1 rounded text-xs font-medium transition">
+                            Follow Up Now
+                        </button>
+                        <button onclick="window.app.dismissFollowUpNudge('${r.appId}')"
+                            class="text-gray-400 hover:text-white text-xs transition">
+                            Dismiss
+                        </button>
+                    </div>
+                </div>`;
+            });
+            html += `</div>`;
+        }
+
+        content.innerHTML = html;
+        banner.classList.remove('hidden');
+    }
+
+    /**
+     * Dismiss a follow-up nudge for an application
+     */
+    dismissFollowUpNudge(appId) {
+        const app = this.engine.getById(appId);
+        if (!app) return;
+
+        const followUpService = getFollowUpService();
+        followUpService.dismissNudge(app);
+        this.engine.update(appId, { followUpTracker: app.followUpTracker });
+        this.renderFollowUpBanner();
+    }
+
+    /**
+     * Mark application as ghosted and close it
+     */
+    async markAsGhosted(appId) {
+        if (!confirm('Close this application as ghosted?')) return;
+
+        const result = await this.engine.closeApplication(appId, 'ghosted', 'No response after multiple follow-ups');
+        if (result) {
+            this.render();
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // SETTINGS HANDLERS
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Open settings modal
+     */
+    openSettingsModal() {
+        const modal = document.getElementById('settingsModal');
+        if (!modal) return;
+
+        const settingsService = getSettingsService();
+        const followUp = settingsService.settings.followUp || {};
+
+        document.getElementById('settingInitialWaitDays').value = followUp.initialWaitDays || 3;
+        document.getElementById('settingSubsequentWaitDays').value = followUp.subsequentWaitDays || 5;
+        document.getElementById('settingMaxAttempts').value = followUp.maxAttempts || 3;
+
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+
+    /**
+     * Close settings modal
+     */
+    closeSettingsModal() {
+        const modal = document.getElementById('settingsModal');
+        modal?.classList.add('hidden');
+        modal?.classList.remove('flex');
+    }
+
+    /**
+     * Save settings from modal form
+     */
+    saveSettings() {
+        const settingsService = getSettingsService();
+        settingsService.settings.followUp = {
+            initialWaitDays: parseInt(document.getElementById('settingInitialWaitDays').value) || 3,
+            subsequentWaitDays: parseInt(document.getElementById('settingSubsequentWaitDays').value) || 5,
+            maxAttempts: parseInt(document.getElementById('settingMaxAttempts').value) || 3
+        };
+        settingsService.save();
+
+        this.closeSettingsModal();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // CLOSE APPLICATION HANDLERS
+    // -------------------------------------------------------------------------
+    // Result Modal (Offer Stage)
+    // -------------------------------------------------------------------------
+
+    openResultModal(appId) {
+        document.getElementById('resultAppId').value = appId;
+        document.getElementById('resultNotes').value = '';
+
+        const modal = document.getElementById('resultModal');
+        modal?.classList.remove('hidden');
+        modal?.classList.add('flex');
+    }
+
+    closeResultModal() {
+        const modal = document.getElementById('resultModal');
+        modal?.classList.add('hidden');
+        modal?.classList.remove('flex');
+    }
+
+    async submitResult(outcome) {
+        const appId = document.getElementById('resultAppId').value;
+        const notes = document.getElementById('resultNotes').value;
+
+        if (outcome === 'accepted') {
+            await this.engine.update(appId, {
+                finalResult: 'accepted',
+                currentStage: 6 // Ensure we are in Offer stage
+            });
+            // Log interaction
+            this.engine.addInteraction(appId, {
+                type: 'note',
+                notes: `Offer Accepted! 🎉 ${notes}`
+            });
+        } else {
+            await this.engine.update(appId, {
+                finalResult: 'declined',
+                currentStage: 0 // Close it
+            });
+            // Log interaction
+            this.engine.addInteraction(appId, {
+                type: 'note',
+                notes: `Offer Declined. ${notes}`
+            });
+            // Stop tracking
+            this.engine.getEngine ? this.engine.getEngine().closeApplication(appId, 'declined') : null; // Close logic duplication?
+            // Actually engine.closeApplication handles logic better.
+        }
+
+        // For declined, we should use closeApplication logic to be safe
+        if (outcome === 'declined') {
+            this.engine.closeApplication(appId, 'declined', notes);
+        } else {
+            // For accepted, we just update result.
+            // Maybe add a confetti effect?
+        }
+
+        this.closeResultModal();
+        this.render();
+    }
+
+    // -------------------------------------------------------------------------
+    // Close Application Modal
+    // -------------------------------------------------------------------------
+
+    /**
+     * Open close application modal
+     */
+    openCloseAppModal(appId) {
+        const app = this.engine.getById(appId);
+        if (!app) return;
+
+        const modal = document.getElementById('closeAppModal');
+        document.getElementById('closeAppId').value = appId;
+        document.getElementById('closeAppInfo').textContent = `Closing: ${app.companyName} — ${app.role}`;
+        document.getElementById('closeAppReason').value = 'rejected';
+        document.getElementById('closeAppNotes').value = '';
+
+        modal?.classList.remove('hidden');
+        modal?.classList.add('flex');
+    }
+
+    /**
+     * Close the close-application modal
+     */
+    closeCloseAppModal() {
+        const modal = document.getElementById('closeAppModal');
+        modal?.classList.add('hidden');
+        modal?.classList.remove('flex');
+    }
+
+    /**
+     * Handle close application form submit
+     */
+    async handleCloseAppSubmit() {
+        const appId = document.getElementById('closeAppId').value;
+        const reason = document.getElementById('closeAppReason').value;
+        const notes = document.getElementById('closeAppNotes').value;
+
+        const result = await this.engine.closeApplication(appId, reason, notes);
+        if (result) {
+            this.closeCloseAppModal();
+            this.closeDetail();
+            this.render();
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // ROUND OUTCOME HANDLERS
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Open round outcome modal
+     */
+    openRoundOutcomeModal(interviewId) {
+        const interviewService = getInterviewService();
+        const interview = interviewService.getById(interviewId);
+        if (!interview) return;
+
+        const app = this.engine.getById(interview.applicationId);
+        const modal = document.getElementById('roundOutcomeModal');
+
+        document.getElementById('roundOutcomeInterviewId').value = interviewId;
+        document.getElementById('roundOutcomeInfo').textContent =
+            `Round ${interview.roundNumber || '?'} at ${app?.companyName || 'Unknown'}`;
+        document.getElementById('roundOutcomeNotes').value = '';
+
+        modal?.classList.remove('hidden');
+        modal?.classList.add('flex');
+    }
+
+    /**
+     * Close round outcome modal
+     */
+    closeRoundOutcomeModal() {
+        const modal = document.getElementById('roundOutcomeModal');
+        modal?.classList.add('hidden');
+        modal?.classList.remove('flex');
+    }
+
+    /**
+     * Submit round outcome (called from modal buttons)
+     */
+    async submitRoundOutcome(outcome) {
+        const interviewId = document.getElementById('roundOutcomeInterviewId').value;
+        const notes = document.getElementById('roundOutcomeNotes').value;
+        const interviewService = getInterviewService();
+        const interview = interviewService.getById(interviewId);
+        if (!interview) return;
+
+        const result = await this.engine.setRoundOutcome(interviewId, outcome, notes);
+
+        // Add outcome notes as an interaction
+        if (notes) {
+            this.engine.addInteraction(interview.applicationId, {
+                type: 'note',
+                date: new Date().toISOString(),
+                notes: `Round ${interview.roundNumber} outcome: ${outcome}. ${notes}`
+            });
+        }
+
+        this.closeRoundOutcomeModal();
+
+        if (result?.suggestedAction === 'schedule_next_or_offer') {
+            // Auto-open schedule modal for next round
+            this.openScheduleInterviewModal(interview.applicationId);
+        } else if (result?.suggestedAction === 'close_rejected') {
+            this.openCloseAppModal(interview.applicationId);
+        }
+
+        this.render();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // SELECTION & DELETE HANDLERS (Table View)
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Toggle selection of a single application
+     */
+    toggleAppSelection(appId) {
+        if (this.selectedApps.has(appId)) {
+            this.selectedApps.delete(appId);
+        } else {
+            this.selectedApps.add(appId);
+        }
+        this.render();
+    }
+
+    /**
+     * Toggle select all (based on current filtered view)
+     */
+    toggleSelectAll() {
+        const apps = this.engine.getFiltered(
+            this.currentFilter,
+            this.currentSearch,
+            this.currentSort
+        );
+
+        const allSelected = apps.length > 0 && apps.every(app => this.selectedApps.has(app.id));
+
+        if (allSelected) {
+            this.selectedApps.clear();
+        } else {
+            apps.forEach(app => this.selectedApps.add(app.id));
+        }
+        this.render();
+    }
+
+    /**
+     * Delete a single application
+     */
+    async deleteApplication(appId) {
+        if (!confirm('Are you sure you want to delete this application? This action cannot be undone.')) {
+            return;
+        }
+
+        const success = await this.engine.delete(appId);
+        if (success) {
+            this.selectedApps.delete(appId);
+            this.render();
+        } else {
+            alert('Failed to delete application');
+        }
+    }
+
+    /**
+     * Delete all selected applications
+     */
+    async deleteSelectedApplications() {
+        if (this.selectedApps.size === 0) return;
+
+        if (!confirm(`Are you sure you want to delete ${this.selectedApps.size} applications? This action cannot be undone.`)) {
+            return;
+        }
+
+        const ids = Array.from(this.selectedApps);
+
+        for (const id of ids) {
+            await this.engine.delete(id);
+        }
+
+        this.selectedApps.clear();
+        // Force refresh
+        window.location.reload();
     }
 }

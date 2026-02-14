@@ -2,6 +2,7 @@ import { STAGES, STAGE_ORDER, getStage } from '../core/constants/stages.js';
 import { RESULT_LABELS, getResultLabel } from '../core/constants/results.js';
 import { getInteractionIcon, INTERACTION_TYPES } from '../core/constants/interactions.js';
 import { timeAgo, formatDate, formatDateTime } from '../core/utils/dateUtils.js';
+import { DEFAULT_INTERVIEW_TYPES, DEFAULT_INTERVIEW_MODES } from '../core/constants/interview-constants.js';
 
 /**
  * Get display name from email (part before @)
@@ -59,9 +60,9 @@ export function renderCard(app) {
         </div>
         
         <div class="space-y-2 text-sm text-gray-400">
-          ${app.hrName ? `<div class="flex items-center gap-2 truncate"><i class="fas fa-user-tie w-4 flex-shrink-0"></i><span class="truncate">${escapeHtml(app.hrName)}</span></div>` : ''}
+          ${app.contactPersonName ? `<div class="flex items-center gap-2 truncate"><i class="fas fa-user-tie w-4 flex-shrink-0"></i><span class="truncate">${escapeHtml(app.contactPersonName)}${app.vendorCompanyName ? ' (' + escapeHtml(app.vendorCompanyName) + ')' : ''}</span></div>` : ''}
           ${app.opportunityType ? `<div class="flex items-center gap-2"><i class="fas fa-briefcase w-4 flex-shrink-0"></i>${escapeHtml(app.opportunityType)} ${app.location ? '• ' + escapeHtml(app.location) : ''}</div>` : ''}
-          ${app.salary ? `<div class="flex items-center gap-2"><i class="fas fa-money-bill-wave w-4 flex-shrink-0"></i>${escapeHtml(app.salary)}</div>` : ''}
+          ${app.expectedSalary ? `<div class="flex items-center gap-2"><i class="fas fa-money-bill-wave w-4 flex-shrink-0"></i>₹${Number(app.expectedSalary).toLocaleString('en-IN')}</div>` : ''}
         </div>
 
         ${app.finalResult ? `
@@ -79,7 +80,11 @@ export function renderCard(app) {
             <i class="fas fa-clock mr-1"></i> ${timeAgo(app.lastUpdated)}
             ${app.lastModifiedByEmail ? `<span class="text-gray-600">by ${getDisplayName(app.lastModifiedByEmail)}</span>` : ''}
           </span>
-          ${app.currentStage === 4 ? `
+          ${app.followUpTracker?.isActive ? `
+            <span class="text-amber-400 flex items-center gap-1">
+              <i class="fas fa-bell text-xs"></i> Follow-up pending
+            </span>
+          ` : app.currentStage === 4 ? `
             <button onclick="event.stopPropagation(); window.app.openScheduleInterviewModal('${app.id}')" 
               class="bg-green-600 hover:bg-green-500 text-white px-2 py-1 rounded text-xs font-medium transition flex items-center gap-1">
               <i class="fas fa-calendar-plus"></i> Schedule Interview
@@ -113,13 +118,14 @@ export function renderCardView(applications) {
  * Render table header
  * @param {string[]} visibleColumns 
  * @param {{column: string, direction: string}} currentSort 
+ * @param {boolean} allSelected
  * @returns {string}
  */
-export function renderTableHeader(visibleColumns, currentSort) {
+export function renderTableHeader(visibleColumns, currentSort, allSelected = false) {
   const columns = {
     company: { label: 'Company', sortable: true, key: 'companyName' },
     role: { label: 'Role', sortable: true, key: 'role' },
-    hr: { label: 'HR/Vendor', sortable: true, key: 'hrName' },
+    hr: { label: 'Contact', sortable: true, key: 'contactPersonName' },
     type: { label: 'Type', sortable: false },
     location: { label: 'Location', sortable: false },
     salary: { label: 'Salary', sortable: false },
@@ -130,11 +136,15 @@ export function renderTableHeader(visibleColumns, currentSort) {
   };
 
   return `<tr>
+    <th class="px-4 py-3 w-10 sticky top-0 z-20 bg-gray-900 border-b border-gray-700">
+      <input type="checkbox" class="rounded border-gray-600 bg-gray-700 text-indigo-600 focus:ring-indigo-500" 
+             onclick="window.app.toggleSelectAll()" ${allSelected ? 'checked' : ''}>
+    </th>
     ${visibleColumns.map(col => {
     const c = columns[col];
     if (!c) return '';
     const isSorted = currentSort.column === c.key;
-    return `<th class="px-4 py-3 font-medium ${c.sortable ? 'sortable cursor-pointer' : ''}" 
+    return `<th class="px-4 py-3 font-medium ${c.sortable ? 'sortable cursor-pointer' : ''} sticky top-0 z-20 bg-gray-900 border-b border-gray-700" 
           ${c.sortable ? `onclick="window.app.sortBy('${c.key}')"` : ''}>
           <div class="flex items-center gap-2">
             ${c.label}
@@ -142,7 +152,7 @@ export function renderTableHeader(visibleColumns, currentSort) {
           </div>
         </th>`;
   }).join('')}
-    <th class="px-4 py-3 font-medium w-20">Actions</th>
+    <th class="px-4 py-3 font-medium w-24 sticky top-0 z-20 bg-gray-900 border-b border-gray-700">Actions</th>
   </tr>`;
 }
 
@@ -150,19 +160,20 @@ export function renderTableHeader(visibleColumns, currentSort) {
  * Render table row
  * @param {import('../core/models/Application.js').ApplicationData} app 
  * @param {string[]} visibleColumns 
+ * @param {boolean} isSelected
  * @returns {string}
  */
-export function renderTableRow(app, visibleColumns) {
+export function renderTableRow(app, visibleColumns, isSelected = false) {
   const stage = getStage(app.currentStage);
   const lastInteraction = app.interactions?.length > 0 ? app.interactions[app.interactions.length - 1] : null;
 
   const cellData = {
     company: `<div class="font-medium text-white">${escapeHtml(app.companyName)}</div>`,
     role: `<div class="text-indigo-400">${escapeHtml(app.role)}</div>`,
-    hr: `<div>${escapeHtml(app.hrName || '-')}</div><div class="text-xs text-gray-500">${escapeHtml(app.hrContact || '')}</div>`,
+    hr: `<div>${escapeHtml(app.contactPersonName || '-')}</div><div class="text-xs text-gray-500">${escapeHtml(app.vendorCompanyName || '')}</div>`,
     type: `<span class="bg-gray-700 px-2 py-1 rounded text-xs">${escapeHtml(app.opportunityType || '-')}</span>`,
     location: `<div>${escapeHtml(app.location || '-')}</div><div class="text-xs text-gray-500">${escapeHtml(app.city || '')}</div>`,
-    salary: `<div>${escapeHtml(app.salary || '-')}</div>`,
+    salary: `<div>${app.expectedSalary ? '₹' + Number(app.expectedSalary).toLocaleString('en-IN') : '-'}</div>`,
     stage: `<span class="inline-flex items-center gap-1 ${stage.color} text-white text-xs px-2 py-1 rounded-full">
       <i class="fas ${stage.icon}"></i> ${stage.name}
     </span>`,
@@ -175,7 +186,12 @@ export function renderTableRow(app, visibleColumns) {
     updated: `<div class="text-xs text-gray-400">${timeAgo(app.lastUpdated)}</div>`
   };
 
-  return `<tr class="hover:bg-gray-700/50 cursor-pointer" onclick="window.app.openDetail('${app.id}')">
+  return `<tr class="hover:bg-gray-700/50 cursor-pointer ${isSelected ? 'bg-indigo-900/20' : ''}" onclick="window.app.openDetail('${app.id}')">
+    <td class="px-4 py-3">
+      <input type="checkbox" class="rounded border-gray-600 bg-gray-700 text-indigo-600 focus:ring-indigo-500"
+             onclick="event.stopPropagation(); window.app.toggleAppSelection('${app.id}')"
+             ${isSelected ? 'checked' : ''}>
+    </td>
     ${visibleColumns.map(col => `<td class="px-4 py-3">${cellData[col] || ''}</td>`).join('')}
     <td class="px-4 py-3">
       <div class="flex gap-2">
@@ -190,6 +206,9 @@ export function renderTableRow(app, visibleColumns) {
         <button onclick="event.stopPropagation(); window.app.openEditModal('${app.id}')" class="text-indigo-400 hover:text-indigo-300" title="Edit">
           <i class="fas fa-edit"></i>
         </button>
+        <button onclick="event.stopPropagation(); window.app.deleteApplication('${app.id}')" class="text-red-400 hover:text-red-300" title="Delete">
+          <i class="fas fa-trash"></i>
+        </button>
       </div>
     </td>
   </tr>`;
@@ -200,13 +219,39 @@ export function renderTableRow(app, visibleColumns) {
  * @param {import('../core/models/Application.js').ApplicationData[]} applications 
  * @param {string[]} visibleColumns 
  * @param {{column: string, direction: string}} currentSort 
- * @returns {{header: string, body: string}}
+ * @param {Set<string>} selectedApps
+ * @returns {{header: string, body: string, bulkActions: string}}
  */
-export function renderTableView(applications, visibleColumns, currentSort) {
+export function renderTableView(applications, visibleColumns, currentSort, selectedApps = new Set()) {
+  const allSelected = applications.length > 0 && applications.every(app => selectedApps.has(app.id));
+
   return {
-    header: renderTableHeader(visibleColumns, currentSort),
-    body: applications.map(app => renderTableRow(app, visibleColumns)).join('')
+    header: renderTableHeader(visibleColumns, currentSort, allSelected),
+    body: applications.map(app => renderTableRow(app, visibleColumns, selectedApps.has(app.id))).join(''),
+    bulkActions: renderBulkActionsBar(selectedApps.size)
   };
+}
+
+/**
+ * Render bulk actions bar
+ * @param {number} selectedCount 
+ * @returns {string}
+ */
+export function renderBulkActionsBar(selectedCount) {
+  if (selectedCount === 0) return '';
+  return `
+    <div class="flex items-center justify-between bg-indigo-900/50 border border-indigo-500/50 rounded-lg px-4 py-2">
+      <div class="flex items-center gap-2">
+        <span class="text-indigo-300 text-sm font-medium">${selectedCount} selected</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="window.app.deleteSelectedApplications()" 
+          class="bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-md text-sm font-medium transition flex items-center gap-2">
+          <i class="fas fa-trash-alt"></i> Delete Selected
+        </button>
+      </div>
+    </div>
+  `;
 }
 
 /**
@@ -291,9 +336,10 @@ export function renderKanbanView(applications) {
 /**
  * Render detail panel content
  * @param {import('../core/models/Application.js').ApplicationData} app 
+ * @param {import('../core/models/Interview.js').InterviewData[]} [interviews]
  * @returns {string}
  */
-export function renderDetailPanel(app) {
+export function renderDetailPanel(app, interviews = []) {
   const stage = getStage(app.currentStage);
   const resultLabel = getResultLabel(app.finalResult);
 
@@ -309,7 +355,7 @@ export function renderDetailPanel(app) {
       <div class="flex flex-wrap gap-2 mt-3">
         <span class="${stage.color} text-white text-sm px-3 py-1 rounded-full flex items-center gap-2">
           <i class="fas ${stage.icon}"></i>
-          Stage ${app.currentStage}: ${stage.name}
+          ${stage.name}
         </span>
         ${resultLabel ? `
           <span class="bg-gray-700 text-sm px-3 py-1 rounded-full ${resultLabel.class}">
@@ -332,6 +378,11 @@ export function renderDetailPanel(app) {
         <button onclick="window.app.closeDetail(); window.app.openEditModal('${app.id}')" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
           <i class="fas fa-edit"></i> Edit
         </button>
+        ${app.currentStage !== 0 ? `
+        <button onclick="window.app.openCloseAppModal('${app.id}')" class="bg-orange-600 hover:bg-orange-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
+          <i class="fas fa-times-circle"></i> Close
+        </button>
+        ` : ''}
         <button onclick="window.app.deleteApplication('${app.id}')" class="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
           <i class="fas fa-trash"></i> Delete
         </button>
@@ -353,27 +404,29 @@ export function renderDetailPanel(app) {
           <i class="fas fa-info-circle text-indigo-400"></i> Opportunity Details
         </h3>
         <div class="grid grid-cols-2 gap-4 text-sm">
-          ${app.hrName ? `<div><span class="text-gray-500">HR/Vendor:</span><p class="text-white">${escapeHtml(app.hrName)}</p></div>` : ''}
-          ${app.hrContact ? `<div><span class="text-gray-500">Contact:</span><p class="text-white">${escapeHtml(app.hrContact)}</p></div>` : ''}
+          ${app.contactPersonName ? `<div><span class="text-gray-500">Contact:</span><p class="text-white">${escapeHtml(app.contactPersonName)}</p></div>` : ''}
+          ${app.vendorCompanyName ? `<div><span class="text-gray-500">Vendor:</span><p class="text-white">${escapeHtml(app.vendorCompanyName)}</p></div>` : ''}
+          ${app.contactPhone ? `<div><span class="text-gray-500">Phone:</span><p class="text-white">${escapeHtml(app.contactPhone)}</p></div>` : ''}
+          ${app.contactEmail ? `<div><span class="text-gray-500">Email:</span><p class="text-white">${escapeHtml(app.contactEmail)}</p></div>` : ''}
           ${app.opportunityType ? `<div><span class="text-gray-500">Type:</span><p class="text-white">${escapeHtml(app.opportunityType)}</p></div>` : ''}
           ${app.location ? `<div><span class="text-gray-500">Work Mode:</span><p class="text-white">${escapeHtml(app.location)}${app.city ? ' - ' + escapeHtml(app.city) : ''}</p></div>` : ''}
-          ${app.salary ? `<div><span class="text-gray-500">Salary/Rate:</span><p class="text-white">${escapeHtml(app.salary)}</p></div>` : ''}
+          ${app.expectedSalary ? `<div><span class="text-gray-500">Expected Salary:</span><p class="text-white">₹${Number(app.expectedSalary).toLocaleString('en-IN')}</p></div>` : ''}
           ${app.noticePeriod ? `<div><span class="text-gray-500">Notice Period:</span><p class="text-white">${escapeHtml(app.noticePeriod)}</p></div>` : ''}
           <div><span class="text-gray-500">Created:</span><p class="text-white">${formatDate(app.createdAt)}${app.createdByEmail ? ` <span class="text-gray-500">by ${getDisplayName(app.createdByEmail)}</span>` : ''}</p></div>
           <div><span class="text-gray-500">Last Updated:</span><p class="text-white">${formatDateTime(app.lastUpdated)}${app.lastModifiedByEmail ? ` <span class="text-gray-500">by ${getDisplayName(app.lastModifiedByEmail)}</span>` : ''}</p></div>
         </div>
-        ${app.keySkills ? `
+        ${Array.isArray(app.skillTags) && app.skillTags.length > 0 ? `
           <div class="mt-4">
-            <span class="text-gray-500 text-sm">Key Skills:</span>
+            <span class="text-gray-500 text-sm">Skills:</span>
             <div class="flex flex-wrap gap-2 mt-1">
-              ${app.keySkills.split(',').map(skill => `<span class="bg-gray-700 text-gray-300 px-2 py-1 rounded text-xs">${escapeHtml(skill.trim())}</span>`).join('')}
+              ${app.skillTags.map(skill => `<span class="bg-gray-700 text-gray-300 px-2 py-1 rounded text-xs">${escapeHtml(skill)}</span>`).join('')}
             </div>
           </div>
         ` : ''}
-        ${app.jdNotes ? `
+        ${app.jobDescription ? `
           <div class="mt-4">
-            <span class="text-gray-500 text-sm">JD/Notes:</span>
-            <p class="text-gray-300 text-sm mt-1 whitespace-pre-wrap">${escapeHtml(app.jdNotes)}</p>
+            <span class="text-gray-500 text-sm">Job Description:</span>
+            <p class="text-gray-300 text-sm mt-1 whitespace-pre-wrap">${escapeHtml(app.jobDescription)}</p>
           </div>
         ` : ''}
       </div>
@@ -383,7 +436,7 @@ export function renderDetailPanel(app) {
           <i class="fas fa-tasks text-indigo-400"></i> Your Process Stages
         </h3>
         <div class="space-y-2">
-          ${[1, 2, 3, 4, 5, 6, 7, 8].map(s => {
+          ${[1, 2, 3, 4, 5, 6].map(s => {
     const stageInfo = STAGES[s];
     const isCompleted = app.currentStage >= s;
     const isCurrent = app.currentStage === s;
@@ -402,6 +455,39 @@ export function renderDetailPanel(app) {
   }).join('')}
         </div>
       </div>
+
+      ${interviews && interviews.length > 0 ? `
+      <div class="bg-gray-900/50 rounded-xl p-4">
+        <h3 class="font-semibold text-white mb-3 flex items-center gap-2">
+          <i class="fas fa-users text-indigo-400"></i> Interview Rounds
+        </h3>
+        <div class="space-y-3">
+          ${interviews.map(int => `
+            <div class="flex gap-3 border-l-2 ${int.status === 'completed' ? (int.roundOutcome === 'cleared' ? 'border-green-500' : 'border-red-500') : 'border-indigo-500'} pl-4 pb-3">
+              <div class="flex-1">
+                <div class="flex items-center gap-2 text-sm">
+                  <span class="text-white font-medium">Round ${int.roundNumber}</span>
+                  <span class="text-gray-400">• ${DEFAULT_INTERVIEW_TYPES[int.type]?.name || int.type}</span>
+                  ${int.status === 'completed'
+      ? `<span class="px-2 py-0.5 rounded text-xs ${int.roundOutcome === 'cleared' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}">${int.roundOutcome === 'cleared' ? 'Cleared' : 'Not Cleared'}</span>`
+      : `<span class="px-2 py-0.5 rounded text-xs bg-blue-500/20 text-blue-400">Scheduled</span>`
+    }
+                </div>
+                <p class="text-sm text-gray-400 mt-1">
+                  ${formatDateTime(int.scheduledAt)} • ${DEFAULT_INTERVIEW_MODES[int.mode]?.name || int.mode}
+                </p>
+                ${int.outcome ? `<p class="text-sm text-gray-300 mt-2 bg-gray-800 p-2 rounded">"${escapeHtml(int.outcome)}"</p>` : ''}
+              </div>
+              ${int.status !== 'completed' ? `
+              <button onclick="window.app.openRoundOutcomeModal('${int.id}')" class="text-indigo-400 hover:text-indigo-300 text-sm font-medium whitespace-nowrap">
+                Outcome
+              </button>
+              ` : ''}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      ` : ''}
 
       <div class="bg-gray-900/50 rounded-xl p-4">
         <h3 class="font-semibold text-white mb-3 flex items-center gap-2">

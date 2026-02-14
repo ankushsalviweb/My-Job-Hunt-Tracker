@@ -3,14 +3,11 @@
  * @type {Object.<string, string>}
  */
 export const INTERACTION_ICONS = {
-    'call_received': '📞',
-    'call_made': '📱',
-    'email_received': '📧',
-    'email_sent': '📤',
-    'interview': '🎤',
-    'followup': '🔄',
-    'update': '📝',
-    'other': '📌'
+    'hr_called': '📞',
+    'followed_up': '📱',
+    'document_received': '📧',
+    'interview_round': '🎤',
+    'note': '📝'
 };
 
 /**
@@ -18,14 +15,11 @@ export const INTERACTION_ICONS = {
  * @type {Array<{value: string, label: string}>}
  */
 export const INTERACTION_TYPES = [
-    { value: 'call_received', label: '📞 Call Received' },
-    { value: 'call_made', label: '📱 Call Made' },
-    { value: 'email_received', label: '📧 Email Received' },
-    { value: 'email_sent', label: '📤 Email Sent' },
-    { value: 'interview', label: '🎤 Interview' },
-    { value: 'followup', label: '🔄 Follow Up' },
-    { value: 'update', label: '📝 Status Update' },
-    { value: 'other', label: '📌 Other' }
+    { value: 'hr_called', label: '📞 HR/Vendor Called Me' },
+    { value: 'followed_up', label: '📱 I Followed Up' },
+    { value: 'document_received', label: '📧 Document Received' },
+    { value: 'interview_round', label: '🎤 Interview Round' },
+    { value: 'note', label: '📝 Note' }
 ];
 
 /**
@@ -34,5 +28,5 @@ export const INTERACTION_TYPES = [
  * @returns {string}
  */
 export function getInteractionIcon(type) {
-    return INTERACTION_ICONS[type] || '📌';
+    return INTERACTION_ICONS[type] || '📝';
 }

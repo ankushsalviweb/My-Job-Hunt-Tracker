@@ -11,10 +11,10 @@ const chartInstances = {};
  * @param {string} chartId 
  */
 function destroyChart(chartId) {
-    if (chartInstances[chartId]) {
-        chartInstances[chartId].destroy();
-        delete chartInstances[chartId];
-    }
+  if (chartInstances[chartId]) {
+    chartInstances[chartId].destroy();
+    delete chartInstances[chartId];
+  }
 }
 
 /**
@@ -23,58 +23,58 @@ function destroyChart(chartId) {
  * @param {import('../core/services/AnalyticsService.js').StageStats[]} data 
  */
 export function renderStageDistributionChart(canvasId, data) {
-    destroyChart(canvasId);
+  destroyChart(canvasId);
 
-    const ctx = document.getElementById(canvasId);
-    if (!ctx) return;
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
 
-    const colorMap = {
-        'bg-blue-500': '#3b82f6',
-        'bg-purple-500': '#a855f7',
-        'bg-yellow-500': '#eab308',
-        'bg-teal-500': '#14b8a6',
-        'bg-indigo-500': '#6366f1',
-        'bg-orange-500': '#f97316',
-        'bg-pink-500': '#ec4899',
-        'bg-green-500': '#22c55e',
-        'bg-gray-500': '#6b7280'
-    };
+  const colorMap = {
+    'bg-blue-500': '#3b82f6',
+    'bg-purple-500': '#a855f7',
+    'bg-yellow-500': '#eab308',
+    'bg-teal-500': '#14b8a6',
+    'bg-indigo-500': '#6366f1',
+    'bg-orange-500': '#f97316',
+    'bg-pink-500': '#ec4899',
+    'bg-green-500': '#22c55e',
+    'bg-gray-500': '#6b7280'
+  };
 
-    chartInstances[canvasId] = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: data.map(d => d.name),
-            datasets: [{
-                data: data.map(d => d.count),
-                backgroundColor: data.map(d => colorMap[d.color] || '#6b7280'),
-                borderColor: '#1f2937',
-                borderWidth: 2
-            }]
+  chartInstances[canvasId] = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: data.map(d => d.name),
+      datasets: [{
+        data: data.map(d => d.count),
+        backgroundColor: data.map(d => colorMap[d.color] || '#6b7280'),
+        borderColor: '#1f2937',
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'right',
+          labels: {
+            color: '#9ca3af',
+            padding: 15,
+            usePointStyle: true,
+            font: { size: 11 }
+          }
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'right',
-                    labels: {
-                        color: '#9ca3af',
-                        padding: 15,
-                        usePointStyle: true,
-                        font: { size: 11 }
-                    }
-                },
-                tooltip: {
-                    backgroundColor: '#374151',
-                    titleColor: '#fff',
-                    bodyColor: '#d1d5db',
-                    padding: 12,
-                    cornerRadius: 8
-                }
-            },
-            cutout: '60%'
+        tooltip: {
+          backgroundColor: '#374151',
+          titleColor: '#fff',
+          bodyColor: '#d1d5db',
+          padding: 12,
+          cornerRadius: 8
         }
-    });
+      },
+      cutout: '60%'
+    }
+  });
 }
 
 /**
@@ -83,54 +83,55 @@ export function renderStageDistributionChart(canvasId, data) {
  * @param {import('../core/services/AnalyticsService.js').ResultStats[]} data 
  */
 export function renderResultsChart(canvasId, data) {
-    destroyChart(canvasId);
+  destroyChart(canvasId);
 
-    const ctx = document.getElementById(canvasId);
-    if (!ctx) return;
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
 
-    const colorMap = {
-        'inprogress': '#6366f1',
-        'offered': '#22c55e',
-        'accepted': '#10b981',
-        'rejected': '#ef4444',
-        'declined': '#eab308',
-        'ghosted': '#6b7280'
-    };
+  const colorMap = {
+    'inprogress': '#6366f1',
+    'offered': '#22c55e',
+    'accepted': '#10b981',
+    'rejected': '#ef4444',
+    'declined': '#eab308',
+    'withdrawn': '#f59e0b',
+    'ghosted': '#6b7280'
+  };
 
-    chartInstances[canvasId] = new Chart(ctx, {
-        type: 'pie',
-        data: {
-            labels: data.map(d => d.label),
-            datasets: [{
-                data: data.map(d => d.count),
-                backgroundColor: data.map(d => colorMap[d.result] || '#6b7280'),
-                borderColor: '#1f2937',
-                borderWidth: 2
-            }]
+  chartInstances[canvasId] = new Chart(ctx, {
+    type: 'pie',
+    data: {
+      labels: data.map(d => d.label),
+      datasets: [{
+        data: data.map(d => d.count),
+        backgroundColor: data.map(d => colorMap[d.result] || '#6b7280'),
+        borderColor: '#1f2937',
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'right',
+          labels: {
+            color: '#9ca3af',
+            padding: 15,
+            usePointStyle: true,
+            font: { size: 11 }
+          }
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'right',
-                    labels: {
-                        color: '#9ca3af',
-                        padding: 15,
-                        usePointStyle: true,
-                        font: { size: 11 }
-                    }
-                },
-                tooltip: {
-                    backgroundColor: '#374151',
-                    titleColor: '#fff',
-                    bodyColor: '#d1d5db',
-                    padding: 12,
-                    cornerRadius: 8
-                }
-            }
+        tooltip: {
+          backgroundColor: '#374151',
+          titleColor: '#fff',
+          bodyColor: '#d1d5db',
+          padding: 12,
+          cornerRadius: 8
         }
-    });
+      }
+    }
+  });
 }
 
 /**
@@ -139,67 +140,67 @@ export function renderResultsChart(canvasId, data) {
  * @param {import('../core/services/AnalyticsService.js').TimelineData[]} data 
  */
 export function renderTimelineChart(canvasId, data) {
-    destroyChart(canvasId);
+  destroyChart(canvasId);
 
-    const ctx = document.getElementById(canvasId);
-    if (!ctx) return;
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
 
-    chartInstances[canvasId] = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: data.map(d => d.week.replace(/^\d{4}-/, '')),
-            datasets: [{
-                label: 'Applications Added',
-                data: data.map(d => d.count),
-                borderColor: '#6366f1',
-                backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                tension: 0.3,
-                fill: true,
-                pointBackgroundColor: '#6366f1',
-                pointBorderColor: '#fff',
-                pointBorderWidth: 2,
-                pointRadius: 4,
-                pointHoverRadius: 6
-            }]
+  chartInstances[canvasId] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: data.map(d => d.week.replace(/^\d{4}-/, '')),
+      datasets: [{
+        label: 'Applications Added',
+        data: data.map(d => d.count),
+        borderColor: '#6366f1',
+        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+        tension: 0.3,
+        fill: true,
+        pointBackgroundColor: '#6366f1',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointRadius: 4,
+        pointHoverRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: false
-                },
-                tooltip: {
-                    backgroundColor: '#374151',
-                    titleColor: '#fff',
-                    bodyColor: '#d1d5db',
-                    padding: 12,
-                    cornerRadius: 8
-                }
-            },
-            scales: {
-                x: {
-                    grid: {
-                        color: 'rgba(75, 85, 99, 0.3)'
-                    },
-                    ticks: {
-                        color: '#9ca3af',
-                        font: { size: 10 }
-                    }
-                },
-                y: {
-                    beginAtZero: true,
-                    grid: {
-                        color: 'rgba(75, 85, 99, 0.3)'
-                    },
-                    ticks: {
-                        color: '#9ca3af',
-                        stepSize: 1
-                    }
-                }
-            }
+        tooltip: {
+          backgroundColor: '#374151',
+          titleColor: '#fff',
+          bodyColor: '#d1d5db',
+          padding: 12,
+          cornerRadius: 8
         }
-    });
+      },
+      scales: {
+        x: {
+          grid: {
+            color: 'rgba(75, 85, 99, 0.3)'
+          },
+          ticks: {
+            color: '#9ca3af',
+            font: { size: 10 }
+          }
+        },
+        y: {
+          beginAtZero: true,
+          grid: {
+            color: 'rgba(75, 85, 99, 0.3)'
+          },
+          ticks: {
+            color: '#9ca3af',
+            stepSize: 1
+          }
+        }
+      }
+    }
+  });
 }
 
 /**
@@ -208,7 +209,7 @@ export function renderTimelineChart(canvasId, data) {
  * @returns {string}
  */
 export function renderAnalyticsView(analytics) {
-    return `
+  return `
     <div class="fade-in space-y-6">
       <!-- Stats Cards -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4">

@@ -27,4 +27,22 @@ npm-debug.log*
 
 # Temporary files
 *.tmp
-.cache/
+# Test coverage
+coverage/
+.nyc_output/
+
+# Test directories and files
+__tests__/
+*.test.js
+*.spec.js
+tests/
+test/
+
+# Local configuration
+.firebase/
+.firebaserc
+firebase.json
+firestore.indexes.json
+firestore.rules
+storage.rules
+

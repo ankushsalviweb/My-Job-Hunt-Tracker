@@ -1,7 +1,8 @@
 import {
     DEFAULT_INTERVIEW_TYPES,
     DEFAULT_INTERVIEW_MODES,
-    DEFAULT_REMINDER_MINUTES
+    DEFAULT_REMINDER_MINUTES,
+    FOLLOWUP_DEFAULTS
 } from '../constants/interview-constants.js';
 
 const STORAGE_KEY = 'job_tracker_settings';
@@ -12,6 +13,7 @@ const STORAGE_KEY = 'job_tracker_settings';
  * @property {Object.<string, {name: string, icon: string}>} interviewModes
  * @property {number} defaultReminderMinutes
  * @property {boolean} notificationsEnabled
+ * @property {{initialWaitDays: number, subsequentWaitDays: number, maxAttempts: number}} followUp
  */
 
 /**
@@ -34,7 +36,8 @@ class SettingsService {
             interviewTypes: { ...DEFAULT_INTERVIEW_TYPES },
             interviewModes: { ...DEFAULT_INTERVIEW_MODES },
             defaultReminderMinutes: DEFAULT_REMINDER_MINUTES,
-            notificationsEnabled: true
+            notificationsEnabled: true,
+            followUp: { ...FOLLOWUP_DEFAULTS }
         };
     }
 

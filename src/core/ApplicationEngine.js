@@ -6,7 +6,8 @@ import { SortService } from './services/SortService.js';
 import { AnalyticsService } from './services/AnalyticsService.js';
 import { getInterviewService } from './services/InterviewService.js';
 import { getSettingsService } from './services/SettingsService.js';
-import { STAGES } from './constants/stages.js';
+import { getFollowUpService } from './services/FollowUpService.js';
+import { STAGES, STAGE_ACTIONS } from './constants/stages.js';
 
 /**
  * @typedef {import('./services/FilterService.js').FilterOptions} FilterOptions
@@ -54,7 +55,7 @@ export class ApplicationEngine {
     // ═══════════════════════════════════════════════════════════════
 
     /**
-     * Get the current storage service (dynamically checks auth state)
+     * Get the current storage service
      * @returns {import('./services/StorageService.js').StorageService | import('./services/FirebaseStorageService.js').FirebaseStorageService}
      */
     getStorage() {
@@ -80,7 +81,7 @@ export class ApplicationEngine {
     }
 
     /**
-     * Reload data from storage (useful after auth changes)
+     * Reload data from storage
      */
     reloadFromStorage() {
         this.applications = this.getStorage().load();
@@ -111,9 +112,9 @@ export class ApplicationEngine {
     /**
      * Create a new application
      * @param {Partial<ApplicationData>} data
-     * @returns {{success: boolean, data?: ApplicationData, errors?: string[]}}
+     * @returns {Promise<{success: boolean, data?: ApplicationData, errors?: string[]}>}
      */
-    create(data) {
+    async create(data) {
         const validation = Application.validate(data);
         if (!validation.valid) {
             return { success: false, errors: validation.errors };
@@ -122,12 +123,11 @@ export class ApplicationEngine {
         const app = Application.create(data);
         this.applications.push(app);
 
-        // Use saveOne with isNew=true for proper attribution
         const storage = this.getStorage();
         if (storage.saveOne) {
-            storage.saveOne(app, true); // isNew = true
+            await storage.saveOne(app, true);
         } else {
-            this.save();
+            await this.save();
         }
 
         this.notify();
@@ -138,9 +138,9 @@ export class ApplicationEngine {
      * Update an existing application
      * @param {string} id
      * @param {Partial<ApplicationData>} data
-     * @returns {{success: boolean, data?: ApplicationData, errors?: string[]}}
+     * @returns {Promise<{success: boolean, data?: ApplicationData, errors?: string[]}>}
      */
-    update(id, data) {
+    async update(id, data) {
         const index = this.applications.findIndex(app => app.id === id);
         if (index === -1) {
             return { success: false, errors: ['Application not found'] };
@@ -154,12 +154,11 @@ export class ApplicationEngine {
         const updated = Application.update(this.applications[index], data);
         this.applications[index] = updated;
 
-        // Use saveOne with isNew=false for proper attribution
         const storage = this.getStorage();
         if (storage.saveOne) {
-            storage.saveOne(updated, false); // isNew = false (update)
+            await storage.saveOne(updated, false);
         } else {
-            this.save();
+            await this.save();
         }
 
         this.notify();
@@ -169,14 +168,26 @@ export class ApplicationEngine {
     /**
      * Delete an application
      * @param {string} id
-     * @returns {boolean}
+     * @returns {Promise<boolean>}
      */
-    delete(id) {
+    /**
+     * Delete an application
+     * @param {string} id
+     * @returns {Promise<boolean>}
+     */
+    async delete(id) {
         const index = this.applications.findIndex(app => app.id === id);
         if (index === -1) return false;
 
         this.applications.splice(index, 1);
-        this.save();
+
+        const storage = this.getStorage();
+        if (typeof storage.delete === 'function') {
+            await storage.delete(id);
+        } else {
+            await this.save();
+        }
+
         this.notify();
 
         return true;
@@ -202,18 +213,12 @@ export class ApplicationEngine {
         return result;
     }
 
-    /**
-     * Set current filters
-     * @param {Partial<FilterOptions>} filters
-     */
+    /** @param {Partial<FilterOptions>} filters */
     setFilters(filters) {
         this.currentFilters = { ...this.currentFilters, ...filters };
         this.notify();
     }
 
-    /**
-     * Clear all filters
-     */
     clearFilters() {
         this.currentFilters = {
             search: '',
@@ -225,19 +230,12 @@ export class ApplicationEngine {
         this.notify();
     }
 
-    /**
-     * Set sort options
-     * @param {string} column
-     */
+    /** @param {string} column */
     toggleSort(column) {
         this.currentSort = this.sortService.toggle(this.currentSort, column);
         this.notify();
     }
 
-    /**
-     * Get filter dropdown options based on current data
-     * @returns {{types: string[], locations: string[]}}
-     */
     getFilterOptions() {
         return this.filterService.getFilterOptions(this.applications);
     }
@@ -253,15 +251,10 @@ export class ApplicationEngine {
      * @param {number} [newStage] - Optional stage to update to
      * @returns {{success: boolean, errors?: string[]}}
      */
-    addInteraction(appId, data, newStage) {
+    async addInteraction(appId, data, newStage) {
         const app = this.getById(appId);
         if (!app) {
             return { success: false, errors: ['Application not found'] };
-        }
-
-        const validation = Interaction.validate(data);
-        if (!validation.valid) {
-            return { success: false, errors: validation.errors };
         }
 
         const interaction = Interaction.create(data);
@@ -269,14 +262,29 @@ export class ApplicationEngine {
         app.interactions.push(interaction);
         app.lastUpdated = new Date().toISOString();
 
+        // If HR called or document received, record HR response to reset follow-up
+        if (data.type === 'hr_called' || data.type === 'document_received') {
+            getFollowUpService().recordHRResponse(app);
+        }
+
+        // If user followed up, record the follow-up attempt
+        if (data.type === 'followed_up' && app.followUpTracker?.isActive) {
+            getFollowUpService().recordFollowUp(app);
+        }
+
         if (newStage !== undefined) {
             app.currentStage = newStage;
         }
 
-        this.save();
+        const storage = this.getStorage();
+        if (storage.saveOne) {
+            await storage.saveOne(app, false);
+        } else {
+            await this.save();
+        }
         this.notify();
 
-        return { success: true };
+        return { success: true, data: interaction };
     }
 
     /**
@@ -285,7 +293,7 @@ export class ApplicationEngine {
      * @param {string} interactionId
      * @returns {boolean}
      */
-    removeInteraction(appId, interactionId) {
+    async removeInteraction(appId, interactionId) {
         const app = this.getById(appId);
         if (!app || !app.interactions) return false;
 
@@ -294,25 +302,30 @@ export class ApplicationEngine {
 
         app.interactions.splice(index, 1);
         app.lastUpdated = new Date().toISOString();
-        this.save();
+        const storage = this.getStorage();
+        if (storage.saveOne) {
+            await storage.saveOne(app, false);
+        } else {
+            await this.save();
+        }
         this.notify();
 
         return true;
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // STAGE MANAGEMENT (for Kanban drag-drop)
+    // STAGE MANAGEMENT
     // ═══════════════════════════════════════════════════════════════
 
     /**
-     * Move application to a new stage
+     * Move application to a new stage with action metadata
      * @param {string} appId
      * @param {number} newStage
-     * @returns {boolean}
+     * @returns {{success: boolean, action: string|null}}
      */
-    moveToStage(appId, newStage) {
+    async moveToStage(appId, newStage) {
         const app = this.getById(appId);
-        if (!app || app.currentStage === newStage) return false;
+        if (!app || app.currentStage === newStage) return { success: false, action: null };
 
         const oldStage = app.currentStage;
         app.currentStage = newStage;
@@ -321,14 +334,102 @@ export class ApplicationEngine {
         // Auto-log stage change
         if (!app.interactions) app.interactions = [];
         app.interactions.push(Interaction.create({
-            type: 'update',
-            notes: `Stage changed: ${STAGES[oldStage]?.name || oldStage} → ${STAGES[newStage]?.name || newStage}`
+            type: 'note',
+            notes: `Stage: ${STAGES[oldStage]?.name || oldStage} → ${STAGES[newStage]?.name || newStage}`
         }));
 
-        this.save();
+        // If moving to Screening, start follow-up tracking
+        if (newStage === 3) {
+            getFollowUpService().startTracking(app, 'screening');
+        }
+
+        // If leaving a waiting state, stop follow-up tracking
+        if (newStage !== 3 && oldStage === 3) {
+            getFollowUpService().stopTracking(app);
+        }
+
+        const storage = this.getStorage();
+        if (storage.saveOne) {
+            await storage.saveOne(app, false);
+        } else {
+            await this.save();
+        }
+        this.notify();
+
+        // Return the UI action associated with this stage
+        const action = STAGE_ACTIONS[newStage] || null;
+        return { success: true, action };
+    }
+
+    /**
+     * Close an application with a reason
+     * @param {string} appId
+     * @param {string} reason - rejected/declined/ghosted/withdrawn
+     * @param {string} [notes] - Optional closure notes
+     * @returns {boolean}
+     */
+    async closeApplication(appId, reason, notes = '') {
+        const app = this.getById(appId);
+        if (!app) return false;
+
+        const oldStage = app.currentStage;
+        app.currentStage = 0;
+        app.finalResult = reason;
+        app.lastUpdated = new Date().toISOString();
+
+        // Stop follow-up tracking
+        getFollowUpService().stopTracking(app);
+
+        // Auto-log the closure
+        if (!app.interactions) app.interactions = [];
+        app.interactions.push(Interaction.create({
+            type: 'note',
+            notes: `Closed: ${STAGES[oldStage]?.name} → Closed (${reason})${notes ? '. ' + notes : ''}`
+        }));
+
+        const storage = this.getStorage();
+        if (storage.saveOne) {
+            await storage.saveOne(app, false);
+        } else {
+            await this.save();
+        }
         this.notify();
 
         return true;
+    }
+
+    /**
+     * Get interview sub-status for an application (derived from latest round)
+     * @param {string} appId
+     * @returns {string}
+     */
+    getInterviewSubStatus(appId) {
+        const interviewService = getInterviewService();
+        const rounds = interviewService.getByApplication(appId);
+        if (!rounds || rounds.length === 0) return '';
+
+        // Sort by round number descending
+        const sorted = [...rounds].sort((a, b) => (b.roundNumber || 0) - (a.roundNumber || 0));
+        const latest = sorted[0];
+
+        const roundLabel = `Round ${latest.roundNumber}`;
+
+        if (latest.status === 'scheduled') {
+            const date = new Date(latest.scheduledAt);
+            const dateStr = date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+            return `${roundLabel} — Scheduled ${dateStr}`;
+        }
+
+        if (latest.status === 'completed') {
+            if (latest.roundOutcome === 'cleared') return `${roundLabel} — Cleared ✅`;
+            if (latest.roundOutcome === 'not_cleared') return `${roundLabel} — Not Cleared ❌`;
+            return `${roundLabel} — Awaiting Feedback`;
+        }
+
+        if (latest.status === 'cancelled') return `${roundLabel} — Cancelled`;
+        if (latest.status === 'rescheduled') return `${roundLabel} — Rescheduled`;
+
+        return roundLabel;
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -367,66 +468,51 @@ export class ApplicationEngine {
      * @returns {string}
      */
     exportData() {
-        return this.storage.exportData(this.applications);
+        return JSON.stringify(this.applications, null, 2);
     }
 
     /**
      * Import data from JSON
      * @param {string} jsonString
-     * @param {boolean} [merge=false] - If true, merge with existing data
+     * @param {boolean} [merge=false]
      * @returns {{success: boolean, error?: string}}
      */
     importData(jsonString, merge = false) {
-        const result = this.storage.importData(jsonString);
-        if (!result.success) {
-            return { success: false, error: result.error };
+        try {
+            const data = JSON.parse(jsonString);
+            if (!Array.isArray(data)) {
+                return { success: false, error: 'Invalid data format: expected array' };
+            }
+            if (merge) {
+                const existingIds = new Set(this.applications.map(a => a.id));
+                const newApps = data.filter(a => !existingIds.has(a.id));
+                this.applications.push(...newApps);
+            } else {
+                this.applications = data;
+            }
+            this.save();
+            this.notify();
+            return { success: true };
+        } catch (error) {
+            return { success: false, error: 'Invalid JSON format' };
         }
-
-        if (merge) {
-            // Add only new applications (by ID)
-            const existingIds = new Set(this.applications.map(a => a.id));
-            const newApps = result.data.filter(a => !existingIds.has(a.id));
-            this.applications.push(...newApps);
-        } else {
-            this.applications = result.data;
-        }
-
-        this.save();
-        this.notify();
-
-        return { success: true };
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // EVENT SYSTEM (Observer Pattern)
+    // EVENT SYSTEM
     // ═══════════════════════════════════════════════════════════════
 
-    /**
-     * Subscribe to data changes
-     * @param {Function} callback
-     */
-    subscribe(callback) {
-        this.listeners.add(callback);
-    }
+    /** @param {Function} callback */
+    subscribe(callback) { this.listeners.add(callback); }
 
-    /**
-     * Unsubscribe from data changes
-     * @param {Function} callback
-     */
-    unsubscribe(callback) {
-        this.listeners.delete(callback);
-    }
+    /** @param {Function} callback */
+    unsubscribe(callback) { this.listeners.delete(callback); }
 
-    /**
-     * Notify all subscribers of data change
-     */
+    /** Notify all subscribers */
     notify() {
         this.listeners.forEach(callback => {
-            try {
-                callback();
-            } catch (error) {
-                console.error('Error in subscriber callback:', error);
-            }
+            try { callback(); }
+            catch (error) { console.error('Error in subscriber callback:', error); }
         });
     }
 
@@ -435,8 +521,8 @@ export class ApplicationEngine {
     // ═══════════════════════════════════════════════════════════════
 
     /**
-     * Schedule a new interview for an application
-     * Automatically moves the application to Stage 5 (Interview Set) if currently at Stage 4 or below
+     * Schedule a new interview round for an application
+     * Auto-assigns round number and moves app to Interviewing stage
      * @param {string} appId
      * @param {Partial<import('./models/Interview.js').InterviewData>} interviewData
      * @returns {Promise<{success: boolean, data?: import('./models/Interview.js').InterviewData, errors?: string[]}>}
@@ -448,19 +534,79 @@ export class ApplicationEngine {
         }
 
         const interviewService = getInterviewService();
+
+        // Auto-assign round number
+        const nextRound = interviewService.getNextRoundNumber
+            ? interviewService.getNextRoundNumber(appId)
+            : 1;
+
         const result = await interviewService.create({
             ...interviewData,
-            applicationId: appId
+            applicationId: appId,
+            roundNumber: interviewData.roundNumber ?? nextRound
         });
 
         if (result.success) {
-            // Auto-update stage to 5 (Interview Set) if appropriate
+            // Move to Interviewing stage if not already there
             if (app.currentStage >= 1 && app.currentStage <= 4) {
                 this.moveToStage(appId, 5);
             }
+
+            // Stop follow-up tracking (interview is scheduled now)
+            getFollowUpService().stopTracking(app);
+
+            // Log interaction
+            this.addInteraction(appId, {
+                type: 'interview_round',
+                notes: `Round ${result.data.roundNumber} scheduled`,
+                interviewId: result.data.id
+            });
         }
 
         return result;
+    }
+
+    /**
+     * Set round outcome and return suggested next action
+     * @param {string} interviewId
+     * @param {string} outcome - 'cleared' or 'not_cleared'
+     * @param {string} [notes] - Outcome notes
+     * @returns {Promise<{success: boolean, suggestedAction: string|null}>}
+     */
+    async setRoundOutcome(interviewId, outcome, notes = '') {
+        const interviewService = getInterviewService();
+        const interview = interviewService.getById(interviewId);
+        if (!interview) {
+            return { success: false, suggestedAction: null };
+        }
+
+        await interviewService.update(interviewId, {
+            status: 'completed',
+            roundOutcome: outcome,
+            outcome: notes
+        });
+
+        const app = this.getById(interview.applicationId);
+
+        if (outcome === 'cleared') {
+            // Start follow-up tracking for next round/offer
+            if (app) {
+                getFollowUpService().startTracking(
+                    app,
+                    `feedback_round_${interview.roundNumber}`,
+                    null
+                );
+                this.save();
+                this.notify();
+            }
+            return { success: true, suggestedAction: 'schedule_next_or_offer' };
+        }
+
+        if (outcome === 'not_cleared') {
+            return { success: true, suggestedAction: 'close_rejected' };
+        }
+
+        return { success: true, suggestedAction: null };
     }
 
     /**
@@ -485,7 +631,7 @@ export class ApplicationEngine {
         return interviews.map(interview => ({
             interview,
             application: this.getById(interview.applicationId)
-        })).filter(item => item.application); // Filter out orphaned interviews
+        })).filter(item => item.application);
     }
 
     /**
@@ -524,7 +670,7 @@ export class ApplicationEngine {
     }
 
     /**
-     * Get interview types (including user customizations)
+     * Get interview types
      * @returns {Object.<string, {name: string, icon: string}>}
      */
     getInterviewTypes() {
@@ -532,7 +678,7 @@ export class ApplicationEngine {
     }
 
     /**
-     * Get interview modes (including user customizations)
+     * Get interview modes
      * @returns {Object.<string, {name: string, icon: string}>}
      */
     getInterviewModes() {
@@ -540,33 +686,32 @@ export class ApplicationEngine {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // PRIVATE METHODS
+    // FOLLOW-UP
     // ═══════════════════════════════════════════════════════════════
 
     /**
-     * Save data to storage
-     * @private
+     * Check for pending follow-up reminders
+     * @returns {Array<{appId: string, companyName: string, context: string, attempts: number, isGhostCandidate: boolean}>}
      */
-    save() {
+    checkFollowUpReminders() {
+        return getFollowUpService().checkReminders(this.applications);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // PRIVATE
+    // ═══════════════════════════════════════════════════════════════
+
+    /** @private */
+    async save() {
         const storage = this.getStorage();
-        // Handle async save for Firebase
-        if (storage.saveOne) {
-            // Firebase - save is async, use batch update
-            storage.save(this.applications);
-        } else {
-            // LocalStorage - synchronous save
-            storage.save(this.applications);
-        }
+        await storage.save(this.applications);
     }
 }
 
 // Singleton instance
 let engineInstance = null;
 
-/**
- * Get or create the engine instance
- * @returns {ApplicationEngine}
- */
+/** @returns {ApplicationEngine} */
 export function getEngine() {
     if (!engineInstance) {
         engineInstance = new ApplicationEngine();
@@ -574,9 +719,7 @@ export function getEngine() {
     return engineInstance;
 }
 
-/**
- * Reset the engine instance (call after auth changes)
- */
+/** Reset the engine instance (call after auth changes) */
 export function resetEngine() {
     engineInstance = null;
 }

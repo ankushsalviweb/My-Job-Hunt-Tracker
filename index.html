@@ -46,6 +46,10 @@
                             <i class="fas fa-user-circle text-indigo-400"></i>
                             <span id="userDisplayName" class="text-gray-300 text-sm font-medium"></span>
                         </div>
+                        <button onclick="window.app.openSettingsModal()" title="Settings"
+                            class="bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white p-2 sm:p-3 rounded-xl transition">
+                            <i class="fas fa-cog"></i>
+                        </button>
                         <button onclick="window.app.logout()" title="Sign Out"
                             class="bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white p-2 sm:p-3 rounded-xl transition">
                             <i class="fas fa-sign-out-alt"></i>
@@ -55,9 +59,16 @@
             </div>
         </header>
 
+        <!-- Follow-up Nudge Banner -->
+        <div id="followUpBanner" class="hidden max-w-7xl mx-auto px-4 pt-4">
+            <div id="followUpBannerContent" class="bg-amber-900/40 border border-amber-600/50 rounded-xl p-4">
+                <!-- Dynamically populated by UIController -->
+            </div>
+        </div>
+
         <!-- Stats Dashboard -->
         <div class="max-w-7xl mx-auto px-4 py-6">
-            <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-9 gap-2 sm:gap-3" id="stageCounts">
+            <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 gap-2 sm:gap-3" id="stageCounts">
                 <!-- Dynamically populated -->
             </div>
         </div>
@@ -240,9 +251,13 @@
 
             <!-- Table View -->
             <div id="tableView" class="view-container hidden">
-                <div class="table-container bg-gray-800 rounded-xl border border-gray-700">
-                    <table class="w-full text-sm">
-                        <thead id="tableHead" class="bg-gray-900 text-gray-400 text-left">
+                <div id="tableBulkActions" class="mb-3 hidden">
+                    <!-- Dynamically populated -->
+                </div>
+                <div
+                    class="table-container bg-gray-800 rounded-xl border border-gray-700 overflow-y-auto max-h-[calc(100vh-280px)]">
+                    <table class="w-full text-sm relative">
+                        <thead id="tableHead" class="bg-gray-900 text-gray-400 text-left sticky top-0 z-20 shadow-sm">
                             <!-- Dynamically populated -->
                         </thead>
                         <tbody id="tableBody" class="divide-y divide-gray-700">
@@ -298,124 +313,199 @@
                             class="text-gray-400 hover:text-white text-2xl">&times;</button>
                     </div>
                 </div>
-                <form id="applicationForm" class="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                <form id="applicationForm" class="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
                     <input type="hidden" id="appId">
 
-                    <div class="grid md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-300 mb-1">Company Name *</label>
-                            <input type="text" id="companyName" required
-                                class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-300 mb-1">Role/Position *</label>
-                            <input type="text" id="role" required
-                                class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-                        </div>
-                    </div>
-
-                    <div class="grid md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-300 mb-1">HR/Vendor Name</label>
-                            <input type="text" id="hrName"
-                                class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-300 mb-1">HR Contact (Phone/Email)</label>
-                            <input type="text" id="hrContact"
-                                class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                    <!-- SECTION 1: Company & Role -->
+                    <div class="space-y-4">
+                        <h3
+                            class="text-sm font-semibold text-indigo-400 uppercase tracking-wider flex items-center gap-2">
+                            <i class="fas fa-building"></i> Company & Role
+                        </h3>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-1">Company Name *</label>
+                                <input type="text" id="companyName" required
+                                    class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-1">Role/Position *</label>
+                                <input type="text" id="role" required
+                                    class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                            </div>
                         </div>
                     </div>
 
-                    <div class="grid md:grid-cols-3 gap-4">
+                    <!-- SECTION 2: Contact Source -->
+                    <div class="space-y-4 border-t border-gray-700 pt-4">
+                        <h3
+                            class="text-sm font-semibold text-indigo-400 uppercase tracking-wider flex items-center gap-2">
+                            <i class="fas fa-user-tie"></i> Contact Source
+                        </h3>
+
+                        <!-- Vendor Toggle -->
+                        <div class="flex items-center gap-4">
+                            <label class="text-sm text-gray-300">Contact from:</label>
+                            <div class="flex bg-gray-700 rounded-lg p-1">
+                                <button type="button" id="btnDirectHR"
+                                    class="contact-source-btn active px-4 py-2 rounded-md text-sm font-medium transition"
+                                    onclick="window.app.toggleContactSource(false)">
+                                    <i class="fas fa-building mr-1"></i> Direct HR
+                                </button>
+                                <button type="button" id="btnViaVendor"
+                                    class="contact-source-btn px-4 py-2 rounded-md text-sm font-medium text-gray-400 transition"
+                                    onclick="window.app.toggleContactSource(true)">
+                                    <i class="fas fa-handshake mr-1"></i> Via Vendor
+                                </button>
+                            </div>
+                            <input type="hidden" id="isVendor" value="false">
+                        </div>
+
+                        <!-- Vendor Company Name (shown only when Via Vendor) -->
+                        <div id="vendorField" class="hidden">
+                            <label class="block text-sm font-medium text-gray-300 mb-1">Vendor Company Name</label>
+                            <input type="text" id="vendorCompanyName"
+                                class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                placeholder="e.g., ABC Consultants">
+                        </div>
+
+                        <!-- Contact Person Name -->
                         <div>
-                            <label class="block text-sm font-medium text-gray-300 mb-1">Opportunity Type</label>
-                            <select id="opportunityType"
+                            <label class="block text-sm font-medium text-gray-300 mb-1" id="contactPersonLabel">HR
+                                Name</label>
+                            <input type="text" id="contactPersonName"
+                                class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                placeholder="Contact person name">
+                        </div>
+
+                        <!-- Phone & Email -->
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-1">Contact Phone</label>
+                                <input type="tel" id="contactPhone"
+                                    class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                    placeholder="+91 98765 43210">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-1">Contact Email</label>
+                                <input type="email" id="contactEmail"
+                                    class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                    placeholder="hr@company.com">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SECTION 3: Opportunity Details -->
+                    <div class="space-y-4 border-t border-gray-700 pt-4">
+                        <h3
+                            class="text-sm font-semibold text-indigo-400 uppercase tracking-wider flex items-center gap-2">
+                            <i class="fas fa-briefcase"></i> Opportunity Details
+                        </h3>
+                        <div class="grid md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-1">Opportunity Type</label>
+                                <select id="opportunityType"
+                                    class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500">
+                                    <option value="">Select...</option>
+                                    <option value="C2H">C2H (Contract to Hire)</option>
+                                    <option value="Company Payroll">Company Payroll</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-1">Location</label>
+                                <select id="location"
+                                    class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500">
+                                    <option value="">Select...</option>
+                                    <option value="Remote">Remote</option>
+                                    <option value="WFO">Work From Office</option>
+                                    <option value="Hybrid">Hybrid</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-1">City</label>
+                                <input type="text" id="city"
+                                    class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                    placeholder="e.g., Mumbai">
+                            </div>
+                        </div>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-1">Expected Salary (₹)</label>
+                                <input type="number" id="expectedSalary"
+                                    class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                    placeholder="e.g., 2500000">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-1">Notice Period</label>
+                                <input type="text" id="noticePeriod"
+                                    class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                    placeholder="e.g., 30 days, Immediate">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SECTION 4: Skills (Tag Input) -->
+                    <div class="space-y-4 border-t border-gray-700 pt-4">
+                        <h3
+                            class="text-sm font-semibold text-indigo-400 uppercase tracking-wider flex items-center gap-2">
+                            <i class="fas fa-code"></i> Key Skills Required
+                        </h3>
+                        <div class="relative">
+                            <!-- Selected Tags Container -->
+                            <div id="skillTagsContainer"
+                                class="flex flex-wrap gap-2 p-3 bg-gray-700 border border-gray-600 rounded-lg min-h-[48px]">
+                                <!-- Tags will be inserted here dynamically -->
+                                <input type="text" id="skillInput"
+                                    class="flex-1 min-w-[150px] bg-transparent border-none outline-none text-white placeholder-gray-400"
+                                    placeholder="Type skill and press Enter...">
+                            </div>
+                            <!-- Hidden field to store skills as JSON -->
+                            <input type="hidden" id="skillTagsData" value="[]">
+                            <!-- Autocomplete Suggestions -->
+                            <div id="skillSuggestions"
+                                class="hidden absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-10 max-h-48 overflow-y-auto">
+                                <!-- Suggestions populated dynamically -->
+                            </div>
+                        </div>
+                        <p class="text-xs text-gray-500">Press Enter or comma to add a skill. Click × to remove.</p>
+                    </div>
+
+                    <!-- SECTION 5: Job Description -->
+                    <div class="space-y-4 border-t border-gray-700 pt-4">
+                        <h3
+                            class="text-sm font-semibold text-indigo-400 uppercase tracking-wider flex items-center gap-2">
+                            <i class="fas fa-file-alt"></i> Job Description
+                        </h3>
+                        <div>
+                            <textarea id="jobDescription" rows="4"
+                                class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                placeholder="Paste job description here..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Stage (no finalResult — that's set by close flow) -->
+                    <div class="space-y-4 border-t border-gray-700 pt-4">
+                        <h3
+                            class="text-sm font-semibold text-indigo-400 uppercase tracking-wider flex items-center gap-2">
+                            <i class="fas fa-tasks"></i> Status
+                        </h3>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-1">Current Stage</label>
+                            <select id="currentStage"
                                 class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500">
-                                <option value="">Select...</option>
-                                <option value="C2H">C2H (Contract to Hire)</option>
-                                <option value="Payroll">Company Payroll</option>
-                                <option value="Contract">Contract</option>
-                                <option value="Vendor Payroll">Vendor Payroll</option>
-                                <option value="Other">Other</option>
+                                <option value="1">Opportunity Received</option>
+                                <option value="2">Under Discussion</option>
+                                <option value="3">Screening</option>
+                                <option value="4">Shortlisted</option>
+                                <option value="5">Interviewing</option>
+                                <option value="6">Offer Stage</option>
+                                <option value="0">Closed</option>
                             </select>
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-300 mb-1">Location</label>
-                            <select id="location"
-                                class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500">
-                                <option value="">Select...</option>
-                                <option value="Remote">Remote</option>
-                                <option value="WFO">Work From Office</option>
-                                <option value="Hybrid">Hybrid</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-300 mb-1">Location City</label>
-                            <input type="text" id="city"
-                                class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-                        </div>
                     </div>
 
-                    <div class="grid md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-300 mb-1">Expected Salary/Rate</label>
-                            <input type="text" id="salary"
-                                class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                                placeholder="e.g., 25 LPA or $80/hr">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-300 mb-1">Notice Period Discussed</label>
-                            <input type="text" id="noticePeriod"
-                                class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                                placeholder="e.g., Immediate, 30 days">
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Key Skills Required</label>
-                        <input type="text" id="keySkills"
-                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                            placeholder="e.g., React, Node.js, AWS">
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Job Description / Notes</label>
-                        <textarea id="jdNotes" rows="3"
-                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                            placeholder="Paste JD or add notes..."></textarea>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Current Stage</label>
-                        <select id="currentStage"
-                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500">
-                            <option value="1">Stage 1: Initial Contact from HR/Vendor</option>
-                            <option value="2">Stage 2: Opportunity Discussion & JD Shared</option>
-                            <option value="3">Stage 3: CV Submitted - Following Up</option>
-                            <option value="4">Stage 4: CV Shortlisted for Interview</option>
-                            <option value="5">Stage 5: Interview Scheduled</option>
-                            <option value="6">Stage 6: Interview Given - Awaiting Feedback</option>
-                            <option value="7">Stage 7: Further Rounds in Progress</option>
-                            <option value="8">Stage 8: Final Result</option>
-                            <option value="0">Closed/Discarded</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Final Result (if applicable)</label>
-                        <select id="finalResult"
-                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500">
-                            <option value="">In Progress...</option>
-                            <option value="offered">🎉 Offer Received</option>
-                            <option value="accepted">✅ Offer Accepted</option>
-                            <option value="rejected">❌ Rejected by Company</option>
-                            <option value="declined">🚫 Declined by Me</option>
-                            <option value="ghosted">👻 No Response/Ghosted</option>
-                        </select>
-                    </div>
-
-                    <div class="flex gap-3 pt-4">
+                    <!-- Submit Buttons -->
+                    <div class="flex gap-3 pt-4 border-t border-gray-700">
                         <button type="submit"
                             class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-xl font-semibold transition">
                             <i class="fas fa-save mr-2"></i> Save Application
@@ -457,14 +547,11 @@
                         <label class="block text-sm font-medium text-gray-300 mb-1">Interaction Type</label>
                         <select id="interactionType" required
                             class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white">
-                            <option value="call_received">📞 Call Received</option>
-                            <option value="call_made">📱 Call Made</option>
-                            <option value="email_received">📧 Email Received</option>
-                            <option value="email_sent">📤 Email Sent</option>
-                            <option value="interview">🎤 Interview</option>
-                            <option value="followup">🔄 Follow Up</option>
-                            <option value="update">📝 Status Update</option>
-                            <option value="other">📌 Other</option>
+                            <option value="hr_called">📞 HR/Vendor Called Me</option>
+                            <option value="followed_up">📱 I Followed Up</option>
+                            <option value="document_received">📧 Document Received</option>
+                            <option value="interview_round">🎤 Interview Round</option>
+                            <option value="note">📝 Note</option>
                         </select>
                     </div>
 
@@ -486,15 +573,13 @@
                         <select id="interactionStage"
                             class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white">
                             <option value="">No change</option>
-                            <option value="1">Stage 1: Initial Contact from HR/Vendor</option>
-                            <option value="2">Stage 2: Opportunity Discussion & JD Shared</option>
-                            <option value="3">Stage 3: CV Submitted - Following Up</option>
-                            <option value="4">Stage 4: CV Shortlisted for Interview</option>
-                            <option value="5">Stage 5: Interview Scheduled</option>
-                            <option value="6">Stage 6: Interview Given - Awaiting Feedback</option>
-                            <option value="7">Stage 7: Further Rounds in Progress</option>
-                            <option value="8">Stage 8: Final Result</option>
-                            <option value="0">Closed/Discarded</option>
+                            <option value="1">Opportunity Received</option>
+                            <option value="2">Under Discussion</option>
+                            <option value="3">Screening</option>
+                            <option value="4">Shortlisted</option>
+                            <option value="5">Interviewing</option>
+                            <option value="6">Offer Stage</option>
+                            <option value="0">Closed</option>
                         </select>
                     </div>
 
@@ -533,6 +618,14 @@
                             <option value="">Select application...</option>
                             <!-- Dynamically populated -->
                         </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Round Number</label>
+                        <input type="number" id="interviewRoundNumber" min="1" readonly
+                            class="w-full bg-gray-600 border border-gray-500 rounded-lg px-4 py-2 text-white cursor-not-allowed"
+                            value="1">
+                        <p class="text-xs text-gray-500 mt-1">Auto-assigned based on previous rounds</p>
                     </div>
 
                     <div class="grid grid-cols-2 gap-4">
@@ -624,6 +717,168 @@
                 <div id="interviewDetailPanel"
                     class="slide-in bg-gray-800 w-full max-w-lg min-h-screen shadow-2xl border-l border-gray-700">
                     <!-- Dynamically populated -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Close Application Modal -->
+        <div id="closeAppModal" class="modal fixed inset-0 bg-black/70 z-[60] hidden items-center justify-center p-4">
+            <div class="bg-gray-800 rounded-2xl max-w-md w-full shadow-2xl border border-gray-700">
+                <div class="p-6 border-b border-gray-700">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-xl font-bold text-white">Close Application</h2>
+                        <button onclick="window.app.closeCloseAppModal()"
+                            class="text-gray-400 hover:text-white text-2xl">&times;</button>
+                    </div>
+                </div>
+                <form id="closeAppForm" class="p-6 space-y-4">
+                    <input type="hidden" id="closeAppId">
+                    <p id="closeAppInfo" class="text-gray-300 text-sm"></p>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Reason *</label>
+                        <select id="closeAppReason" required
+                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white">
+                            <option value="rejected">❌ Rejected by Company</option>
+                            <option value="declined">🚫 Declined by Me</option>
+                            <option value="ghosted">👻 Ghosted / No Response</option>
+                            <option value="withdrawn">🚪 Withdrawn from Process</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Notes (optional)</label>
+                        <textarea id="closeAppNotes" rows="3"
+                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+                            placeholder="Any additional context..."></textarea>
+                    </div>
+                    <div class="flex gap-3 pt-2">
+                        <button type="submit"
+                            class="flex-1 bg-red-600 hover:bg-red-500 text-white py-3 rounded-xl font-semibold transition">
+                            <i class="fas fa-times-circle mr-2"></i> Close Application
+                        </button>
+                        <button type="button" onclick="window.app.closeCloseAppModal()"
+                            class="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-xl font-semibold transition">
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Round Outcome Modal -->
+        <div id="roundOutcomeModal"
+            class="modal fixed inset-0 bg-black/70 z-[60] hidden items-center justify-center p-4">
+            <div class="bg-gray-800 rounded-2xl max-w-md w-full shadow-2xl border border-gray-700">
+                <div class="p-6 border-b border-gray-700">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-xl font-bold text-white">Round Outcome</h2>
+                        <button onclick="window.app.closeRoundOutcomeModal()"
+                            class="text-gray-400 hover:text-white text-2xl">&times;</button>
+                    </div>
+                </div>
+                <div class="p-6 space-y-4">
+                    <input type="hidden" id="roundOutcomeInterviewId">
+                    <p id="roundOutcomeInfo" class="text-gray-300 text-sm"></p>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">What was the outcome?</label>
+                        <textarea id="roundOutcomeNotes" rows="2"
+                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white mb-3"
+                            placeholder="Brief notes about how it went..."></textarea>
+                        <div class="flex gap-3">
+                            <button type="button" onclick="window.app.submitRoundOutcome('cleared')"
+                                class="flex-1 bg-green-600 hover:bg-green-500 text-white py-3 rounded-xl font-semibold transition">
+                                ✅ Cleared
+                            </button>
+                            <button type="button" onclick="window.app.submitRoundOutcome('not_cleared')"
+                                class="flex-1 bg-red-600 hover:bg-red-500 text-white py-3 rounded-xl font-semibold transition">
+                                ❌ Not Cleared
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Result Modal (Offer Stage) -->
+        <div id="resultModal" class="modal fixed inset-0 bg-black/70 z-[60] hidden items-center justify-center p-4">
+            <div class="bg-gray-800 rounded-2xl max-w-md w-full shadow-2xl border border-gray-700">
+                <div class="p-6 border-b border-gray-700">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-xl font-bold text-white">Offer Received! 🎉</h2>
+                        <button onclick="window.app.closeResultModal()"
+                            class="text-gray-400 hover:text-white text-2xl">&times;</button>
+                    </div>
+                </div>
+                <div class="p-6 space-y-4">
+                    <input type="hidden" id="resultAppId">
+                    <p class="text-gray-300 text-sm">Congratulations on reaching the Offer stage! What is the final
+                        outcome?</p>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Outcome</label>
+                        <div class="flex gap-3 mb-4">
+                            <button type="button" onclick="window.app.submitResult('accepted')"
+                                class="flex-1 bg-green-600 hover:bg-green-500 text-white py-3 rounded-xl font-semibold transition flex flex-col items-center justify-center gap-1">
+                                <i class="fas fa-check-circle text-xl"></i>
+                                <span>Accepted</span>
+                            </button>
+                            <button type="button" onclick="window.app.submitResult('declined')"
+                                class="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-xl font-semibold transition flex flex-col items-center justify-center gap-1">
+                                <i class="fas fa-ban text-xl"></i>
+                                <span>Declined</span>
+                            </button>
+                        </div>
+
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Notes (optional)</label>
+                        <textarea id="resultNotes" rows="2"
+                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+                            placeholder="Salary offered, joining date, etc..."></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Modal -->
+        <div id="settingsModal" class="modal fixed inset-0 bg-black/70 z-[60] hidden items-center justify-center p-4">
+            <div class="bg-gray-800 rounded-2xl max-w-md w-full shadow-2xl border border-gray-700">
+                <div class="p-6 border-b border-gray-700">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-xl font-bold text-white"><i class="fas fa-cog mr-2 text-indigo-400"></i>Settings
+                        </h2>
+                        <button onclick="window.app.closeSettingsModal()"
+                            class="text-gray-400 hover:text-white text-2xl">&times;</button>
+                    </div>
+                </div>
+                <div class="p-6 space-y-5">
+                    <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Follow-up Timers</h3>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Initial Wait (days)</label>
+                        <p class="text-xs text-gray-500 mb-2">Days to wait before first follow-up reminder</p>
+                        <input type="number" id="settingInitialWaitDays" min="1" max="30" value="3"
+                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Subsequent Wait (days)</label>
+                        <p class="text-xs text-gray-500 mb-2">Days between follow-up reminders after the first</p>
+                        <input type="number" id="settingSubsequentWaitDays" min="1" max="30" value="5"
+                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Max Follow-up Attempts</label>
+                        <p class="text-xs text-gray-500 mb-2">After this many attempts, the app is flagged as possible
+                            ghosting</p>
+                        <input type="number" id="settingMaxAttempts" min="1" max="10" value="3"
+                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white">
+                    </div>
+                    <div class="flex gap-3 pt-2">
+                        <button type="button" onclick="window.app.saveSettings()"
+                            class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-xl font-semibold transition">
+                            <i class="fas fa-save mr-2"></i>Save Settings
+                        </button>
+                        <button type="button" onclick="window.app.closeSettingsModal()"
+                            class="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-xl font-semibold transition">
+                            Cancel
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

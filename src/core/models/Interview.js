@@ -5,7 +5,8 @@ import { DEFAULT_REMINDER_MINUTES } from '../constants/interview-constants.js';
  * @typedef {Object} InterviewData
  * @property {string} id - Unique interview ID
  * @property {string} applicationId - Link to parent application
- * @property {string} type - Interview type key (technical, hr, round1, etc.)
+ * @property {number} roundNumber - Round number (auto-incremented per application)
+ * @property {string} type - Interview type key (technical, hr, manager, coding, etc.)
  * @property {string} mode - Interview mode key (video, onsite, phone)
  * @property {string} scheduledAt - ISO datetime of interview
  * @property {number} duration - Duration in minutes
@@ -14,6 +15,7 @@ import { DEFAULT_REMINDER_MINUTES } from '../constants/interview-constants.js';
  * @property {string} [interviewerName] - Name of interviewer(s)
  * @property {string} [notes] - Preparation notes
  * @property {string} status - scheduled/completed/cancelled/rescheduled
+ * @property {string} roundOutcome - pending/cleared/not_cleared
  * @property {number} reminderMinutes - Reminder time before interview
  * @property {boolean} reminderSent - Whether reminder was already sent
  * @property {string} [outcome] - Result notes after interview
@@ -38,7 +40,8 @@ export class Interview {
         return {
             id: data.id || generateId('int'),
             applicationId: data.applicationId || '',
-            type: data.type || 'round1',
+            roundNumber: data.roundNumber ?? 1,
+            type: data.type || 'technical',
             mode: data.mode || 'video',
             scheduledAt: data.scheduledAt || '',
             duration: data.duration ?? 60,
@@ -47,6 +50,7 @@ export class Interview {
             interviewerName: data.interviewerName || '',
             notes: data.notes || '',
             status: data.status || 'scheduled',
+            roundOutcome: data.roundOutcome || 'pending',
             reminderMinutes: data.reminderMinutes ?? DEFAULT_REMINDER_MINUTES,
             reminderSent: data.reminderSent || false,
             outcome: data.outcome || '',
@@ -64,9 +68,10 @@ export class Interview {
         return {
             ...existing,
             ...updates,
-            id: existing.id, // Preserve ID
-            applicationId: existing.applicationId, // Preserve link
-            createdAt: existing.createdAt // Preserve creation date
+            id: existing.id,
+            applicationId: existing.applicationId,
+            roundNumber: existing.roundNumber,
+            createdAt: existing.createdAt
         };
     }
 
@@ -89,14 +94,6 @@ export class Interview {
         }
         if (!data.mode) {
             errors.push('Interview mode is required');
-        }
-
-        // Validate scheduledAt is in the future for new interviews
-        if (data.scheduledAt && !data.id) {
-            const scheduled = new Date(data.scheduledAt);
-            if (scheduled < new Date()) {
-                errors.push('Interview must be scheduled in the future');
-            }
         }
 
         return {

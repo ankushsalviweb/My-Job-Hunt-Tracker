@@ -73,6 +73,7 @@ async function initializeApp() {
 
     // Expose app methods to window for inline event handlers
     window.app = {
+        engine: app.engine,
         // View switching
         switchView: (view) => app.switchView(view),
 
@@ -117,6 +118,43 @@ async function initializeApp() {
         editInterview: (id) => app.editInterview(id),
         deleteInterviewConfirm: (id) => app.deleteInterviewConfirm(id),
         exportInterviewICS: (id) => app.exportInterviewICS(id),
+
+        // Skill tag handlers
+        addSkillTag: (skill) => app.addSkillTag(skill),
+        addSkillTagFromSuggestion: (skill) => app.addSkillTagFromSuggestion(skill),
+        removeSkillTag: (skill) => app.removeSkillTag(skill),
+
+        // Vendor toggle
+        toggleContactSource: (isVendor) => app.toggleContactSource(isVendor),
+
+        // Close Application
+        openCloseAppModal: (appId) => app.openCloseAppModal(appId),
+        closeCloseAppModal: () => app.closeCloseAppModal(),
+        handleCloseAppSubmit: () => app.handleCloseAppSubmit(),
+
+        // Round Outcome
+        openRoundOutcomeModal: (interviewId) => app.openRoundOutcomeModal(interviewId),
+        closeRoundOutcomeModal: () => app.closeRoundOutcomeModal(),
+        submitRoundOutcome: (outcome) => app.submitRoundOutcome(outcome),
+
+        // Result Modal
+        openResultModal: (appId) => app.openResultModal(appId),
+        closeResultModal: () => app.closeResultModal(),
+        submitResult: (outcome) => app.submitResult(outcome),
+
+        // Table View Actions
+        toggleAppSelection: (id) => app.toggleAppSelection(id),
+        toggleSelectAll: () => app.toggleSelectAll(),
+        deleteSelectedApplications: () => app.deleteSelectedApplications(),
+
+        // Follow-up & Ghosting
+        dismissFollowUpNudge: (appId) => app.dismissFollowUpNudge(appId),
+        markAsGhosted: (appId) => app.markAsGhosted(appId),
+
+        // Settings
+        openSettingsModal: () => app.openSettingsModal(),
+        closeSettingsModal: () => app.closeSettingsModal(),
+        saveSettings: () => app.saveSettings(),
 
         // Auth
         logout: async () => {

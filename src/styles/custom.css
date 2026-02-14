@@ -1,97 +1,121 @@
 /* Custom styles for Job Hunt Tracker */
 
 /* Stage pill hover effects */
-.stage-pill { 
-  transition: all 0.3s ease; 
+.stage-pill {
+  transition: all 0.3s ease;
 }
-.stage-pill:hover { 
-  transform: scale(1.05); 
+
+.stage-pill:hover {
+  transform: scale(1.05);
 }
 
 /* Card hover animation */
-.card-hover:hover { 
-  transform: translateY(-2px); 
-  box-shadow: 0 10px 40px rgba(0,0,0,0.15); 
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
 }
 
 /* Modal transitions */
-.modal { 
-  transition: opacity 0.3s ease; 
+.modal {
+  transition: opacity 0.3s ease;
 }
 
 /* Slide-in animation for detail panel */
-.slide-in { 
-  animation: slideIn 0.3s ease; 
+.slide-in {
+  animation: slideIn 0.3s ease;
 }
-@keyframes slideIn { 
-  from { transform: translateX(100%); } 
-  to { transform: translateX(0); } 
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
 }
 
 /* Pulsing dot animation */
-.pulse-dot { 
-  animation: pulse 2s infinite; 
+.pulse-dot {
+  animation: pulse 2s infinite;
 }
-@keyframes pulse { 
-  0%, 100% { opacity: 1; } 
-  50% { opacity: 0.5; } 
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
 }
 
 /* Active view button gradient */
-.view-btn.active { 
-  background: linear-gradient(135deg, #6366f1, #8b5cf6); 
+.view-btn.active {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
 }
 
 /* Kanban specific styles */
-.kanban-column { 
-  min-height: 400px; 
+.kanban-column {
+  min-height: 400px;
 }
-.kanban-card { 
-  cursor: grab; 
+
+.kanban-card {
+  cursor: grab;
 }
-.kanban-card:active { 
-  cursor: grabbing; 
+
+.kanban-card:active {
+  cursor: grabbing;
 }
-.kanban-card.dragging { 
-  opacity: 0.5; 
-  transform: rotate(3deg); 
+
+.kanban-card.dragging {
+  opacity: 0.5;
+  transform: rotate(3deg);
 }
-.kanban-column.drag-over { 
-  background: rgba(99, 102, 241, 0.1); 
-  border-color: #6366f1; 
+
+.kanban-column.drag-over {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: #6366f1;
 }
 
 /* Table scrollbar styling */
-.table-container { 
-  overflow-x: auto; 
+.table-container {
+  overflow-x: auto;
 }
-.table-container::-webkit-scrollbar { 
-  height: 8px; 
+
+.table-container::-webkit-scrollbar {
+  height: 8px;
 }
-.table-container::-webkit-scrollbar-track { 
-  background: #1f2937; 
+
+.table-container::-webkit-scrollbar-track {
+  background: #1f2937;
 }
-.table-container::-webkit-scrollbar-thumb { 
-  background: #4b5563; 
-  border-radius: 4px; 
+
+.table-container::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border-radius: 4px;
 }
 
 /* Sortable column hover */
-.sortable:hover { 
-  background: rgba(99, 102, 241, 0.2); 
+.sortable:hover {
+  background: rgba(99, 102, 241, 0.2);
 }
-.sortable .sort-icon { 
-  opacity: 0; 
-  transition: opacity 0.2s; 
+
+.sortable .sort-icon {
+  opacity: 0;
+  transition: opacity 0.2s;
 }
-.sortable:hover .sort-icon { 
-  opacity: 1; 
+
+.sortable:hover .sort-icon {
+  opacity: 1;
 }
 
 /* Filter dropdown max height */
-.filter-dropdown { 
-  max-height: 200px; 
-  overflow-y: auto; 
+.filter-dropdown {
+  max-height: 200px;
+  overflow-y: auto;
 }
 
 /* Analytics chart containers */
@@ -102,12 +126,14 @@
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
-  .kanban-wrapper { 
-    flex-direction: column; 
+  .kanban-wrapper {
+    flex-direction: column;
   }
-  .kanban-column { 
-    min-width: 100%; 
+
+  .kanban-column {
+    min-width: 100%;
   }
+
   .chart-container {
     height: 250px;
   }
@@ -117,15 +143,83 @@
 .fade-in {
   animation: fadeIn 0.3s ease;
 }
+
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 /* Stats card glow effect */
 .stats-card {
   transition: all 0.3s ease;
 }
+
 .stats-card:hover {
   box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+}
+
+/* Contact source toggle buttons */
+.contact-source-btn.active {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: white;
+}
+
+/* Skill tag pills */
+.skill-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: white;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  animation: fadeIn 0.2s ease;
+}
+
+.skill-tag .remove-tag {
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.skill-tag .remove-tag:hover {
+  opacity: 1;
+}
+
+/* Skill suggestion items */
+.skill-suggestion {
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.skill-suggestion:hover {
+  background: rgba(99, 102, 241, 0.2);
+}
+
+/* Note entry styles */
+.note-entry {
+  border-left: 3px solid #6366f1;
+  background: rgba(99, 102, 241, 0.05);
+}
+
+.note-entry:hover {
+  background: rgba(99, 102, 241, 0.1);
+}
+
+/* Detail panel tabs */
+.detail-tab {
+  transition: all 0.2s ease;
+}
+
+.detail-tab.active {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: white;
 }

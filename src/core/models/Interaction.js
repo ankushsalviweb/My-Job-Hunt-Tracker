@@ -3,9 +3,11 @@ import { generateId } from '../utils/idGenerator.js';
 /**
  * @typedef {Object} InteractionData
  * @property {string} id
- * @property {string} type
- * @property {string} date
- * @property {string} notes
+ * @property {string} type - hr_called | followed_up | document_received | interview_round | note
+ * @property {string} notes - Description of the interaction
+ * @property {string} date - ISO timestamp
+ * @property {number} [stage] - Optional stage update triggered by this interaction
+ * @property {string} [interviewId] - Links to Interview record (for interview_round type)
  */
 
 /**
@@ -13,35 +15,24 @@ import { generateId } from '../utils/idGenerator.js';
  */
 export class Interaction {
     /**
-     * Create a new interaction object
+     * Valid interaction types
+     * @type {string[]}
+     */
+    static VALID_TYPES = ['hr_called', 'followed_up', 'document_received', 'interview_round', 'note'];
+
+    /**
+     * Create a new interaction
      * @param {Partial<InteractionData>} data
      * @returns {InteractionData}
      */
     static create(data) {
         return {
-            id: data.id || generateId(),
-            type: data.type || 'other',
+            id: data.id || generateId('ix'),
+            type: Interaction.VALID_TYPES.includes(data.type) ? data.type : 'note',
+            notes: data.notes || '',
             date: data.date || new Date().toISOString(),
-            notes: data.notes || ''
-        };
-    }
-
-    /**
-     * Validate interaction data
-     * @param {Partial<InteractionData>} data
-     * @returns {{valid: boolean, errors: string[]}}
-     */
-    static validate(data) {
-        const errors = [];
-        if (!data.notes?.trim()) {
-            errors.push('Notes are required');
-        }
-        if (!data.date) {
-            errors.push('Date is required');
-        }
-        return {
-            valid: errors.length === 0,
-            errors
+            stage: data.stage ?? null,
+            interviewId: data.interviewId || null
         };
     }
 }

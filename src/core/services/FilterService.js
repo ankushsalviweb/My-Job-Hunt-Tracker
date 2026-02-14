@@ -26,8 +26,9 @@ export class FilterService {
             filtered = filtered.filter(app =>
                 app.companyName?.toLowerCase().includes(searchLower) ||
                 app.role?.toLowerCase().includes(searchLower) ||
-                app.hrName?.toLowerCase().includes(searchLower) ||
-                app.keySkills?.toLowerCase().includes(searchLower)
+                app.contactPersonName?.toLowerCase().includes(searchLower) ||
+                app.vendorCompanyName?.toLowerCase().includes(searchLower) ||
+                (Array.isArray(app.skillTags) && app.skillTags.some(s => s.toLowerCase().includes(searchLower)))
             );
         }
 

@@ -100,9 +100,48 @@ class NotificationService {
                 requireInteraction: true
             },
             () => {
-                // Could open the application detail view
                 if (window.app?.openDetail) {
                     window.app.openDetail(interview.applicationId);
+                }
+            }
+        );
+    }
+
+    /**
+     * Show follow-up reminder notification
+     * @param {{appId: string, companyName: string, role: string, context: string, daysSinceReminder: number}} reminder
+     */
+    showFollowUpReminder(reminder) {
+        this.showNotification(
+            `📱 Follow Up Needed`,
+            {
+                body: `No update from ${reminder.companyName} (${reminder.role}) for ${reminder.daysSinceReminder + 3} days.\nContext: ${reminder.context}`,
+                tag: `followup-${reminder.appId}`,
+                requireInteraction: true
+            },
+            () => {
+                if (window.app?.openDetail) {
+                    window.app.openDetail(reminder.appId);
+                }
+            }
+        );
+    }
+
+    /**
+     * Show ghosting alert notification
+     * @param {{appId: string, companyName: string, role: string, attempts: number}} reminder
+     */
+    showGhostingAlert(reminder) {
+        this.showNotification(
+            `👻 Possible Ghosting`,
+            {
+                body: `${reminder.companyName} (${reminder.role}) — ${reminder.attempts} follow-ups with no response.\nConsider closing this application.`,
+                tag: `ghost-${reminder.appId}`,
+                requireInteraction: true
+            },
+            () => {
+                if (window.app?.openDetail) {
+                    window.app.openDetail(reminder.appId);
                 }
             }
         );

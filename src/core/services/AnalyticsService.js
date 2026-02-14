@@ -90,7 +90,8 @@ export class AnalyticsService {
             accepted: 0,
             rejected: 0,
             declined: 0,
-            ghosted: 0
+            ghosted: 0,
+            withdrawn: 0
         };
 
         applications.forEach(app => {
@@ -107,7 +108,8 @@ export class AnalyticsService {
             { result: 'accepted', label: RESULT_LABELS.accepted.text, count: counts.accepted },
             { result: 'rejected', label: RESULT_LABELS.rejected.text, count: counts.rejected },
             { result: 'declined', label: RESULT_LABELS.declined.text, count: counts.declined },
-            { result: 'ghosted', label: RESULT_LABELS.ghosted.text, count: counts.ghosted }
+            { result: 'ghosted', label: RESULT_LABELS.ghosted.text, count: counts.ghosted },
+            { result: 'withdrawn', label: RESULT_LABELS.withdrawn.text, count: counts.withdrawn }
         ].filter(r => r.count > 0);
     }
 

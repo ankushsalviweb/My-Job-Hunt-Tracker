@@ -259,6 +259,29 @@ class InterviewService {
         }
         return before - this.interviews.length;
     }
+
+    /**
+     * Get the next round number for an application
+     * @param {string} appId
+     * @returns {number}
+     */
+    getNextRoundNumber(appId) {
+        const rounds = this.getByApplication(appId);
+        if (rounds.length === 0) return 1;
+        const maxRound = Math.max(...rounds.map(r => r.roundNumber || 0));
+        return maxRound + 1;
+    }
+
+    /**
+     * Get the latest (most recent) round for an application
+     * @param {string} appId
+     * @returns {import('../models/Interview.js').InterviewData | null}
+     */
+    getLatestRound(appId) {
+        const rounds = this.getByApplication(appId);
+        if (rounds.length === 0) return null;
+        return rounds.sort((a, b) => (b.roundNumber || 0) - (a.roundNumber || 0))[0];
+    }
 }
 
 // Import Firebase services for runtime switching
